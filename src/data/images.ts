@@ -8,7 +8,7 @@
 //      into that bucket (needed on the web: YGOPRODeck images do not allow
 //      cross-site downloads in browsers)
 //   4. YGOPRODeck directly through the Android app's native HTTP
-//   5. YGOPRODeck / Cardmática with a normal request
+//   5. YGOPRODeck with a normal request
 // If all fail (e.g. offline), a stand-in face is drawn and the download is
 // retried later.
 

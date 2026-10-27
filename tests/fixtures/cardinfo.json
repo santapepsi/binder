@@ -1,0 +1,402 @@
+{
+ "data": [
+  {
+   "id": 46986414,
+   "name": "Dark Magician",
+   "type": "Normal Monster",
+   "desc": "The ultimate wizard in terms of attack and defense.",
+   "race": "Spellcaster",
+   "attribute": "DARK",
+   "atk": 2500,
+   "def": 2100,
+   "level": 7,
+   "card_sets": [
+    {
+     "set_name": "Legend of Blue Eyes White Dragon",
+     "set_code": "LOB-005",
+     "set_rarity": "Ultra Rare"
+    },
+    {
+     "set_name": "Starter Deck: Yugi",
+     "set_code": "SDY-EN006",
+     "set_rarity": "Ultra Rare"
+    }
+   ],
+   "card_images": [
+    {
+     "id": 46986414,
+     "image_url": "https://images.ygoprodeck.com/images/cards/46986414.jpg",
+     "image_url_small": "https://images.ygoprodeck.com/images/cards_small/46986414.jpg"
+    },
+    {
+     "id": 46986415,
+     "image_url": "https://images.ygoprodeck.com/images/cards/46986415.jpg",
+     "image_url_small": "https://images.ygoprodeck.com/images/cards_small/46986415.jpg"
+    },
+    {
+     "id": 46986416,
+     "image_url": "https://images.ygoprodeck.com/images/cards/46986416.jpg",
+     "image_url_small": "https://images.ygoprodeck.com/images/cards_small/46986416.jpg"
+    }
+   ]
+  },
+  {
+   "id": 89631139,
+   "name": "Blue-Eyes White Dragon",
+   "type": "Normal Monster",
+   "desc": "A legendary dragon of overwhelming power.",
+   "race": "Dragon",
+   "attribute": "LIGHT",
+   "atk": 3000,
+   "def": 2500,
+   "level": 8,
+   "card_sets": [
+    {
+     "set_name": "Legend of Blue Eyes White Dragon",
+     "set_code": "LOB-001",
+     "set_rarity": "Ultra Rare"
+    }
+   ],
+   "card_images": [
+    {
+     "id": 89631139,
+     "image_url": "https://images.ygoprodeck.com/images/cards/89631139.jpg",
+     "image_url_small": "https://images.ygoprodeck.com/images/cards_small/89631139.jpg"
+    }
+   ]
+  },
+  {
+   "id": 26202165,
+   "name": "Sangan",
+   "type": "Effect Monster",
+   "desc": "When sent to the GY, search for a weak monster.",
+   "race": "Fiend",
+   "attribute": "DARK",
+   "atk": 1000,
+   "def": 600,
+   "level": 3,
+   "card_sets": [
+    {
+     "set_name": "Metal Raiders",
+     "set_code": "MRD-069",
+     "set_rarity": "Common"
+    }
+   ],
+   "card_images": [
+    {
+     "id": 26202165,
+     "image_url": "https://images.ygoprodeck.com/images/cards/26202165.jpg",
+     "image_url_small": "https://images.ygoprodeck.com/images/cards_small/26202165.jpg"
+    }
+   ]
+  },
+  {
+   "id": 14558127,
+   "name": "Ash Blossom & Joyous Spring",
+   "type": "Tuner Monster",
+   "desc": "Discard to stop a card that adds, summons or sends from the Deck.",
+   "race": "Zombie",
+   "attribute": "FIRE",
+   "atk": 0,
+   "def": 1800,
+   "level": 3,
+   "card_sets": [
+    {
+     "set_name": "Maximum Crisis",
+     "set_code": "MACR-EN036",
+     "set_rarity": "Secret Rare"
+    }
+   ],
+   "card_images": [
+    {
+     "id": 14558127,
+     "image_url": "https://images.ygoprodeck.com/images/cards/14558127.jpg",
+     "image_url_small": "https://images.ygoprodeck.com/images/cards_small/14558127.jpg"
+    }
+   ]
+  },
+  {
+   "id": 64631466,
+   "name": "Relinquished",
+   "type": "Ritual Effect Monster",
+   "desc": "Absorbs an opponent's monster.",
+   "race": "Spellcaster",
+   "attribute": "DARK",
+   "atk": 0,
+   "def": 0,
+   "level": 1,
+   "card_sets": [
+    {
+     "set_name": "Magic Ruler",
+     "set_code": "MRL-E047",
+     "set_rarity": "Ultra Rare"
+    }
+   ],
+   "card_images": [
+    {
+     "id": 64631466,
+     "image_url": "https://images.ygoprodeck.com/images/cards/64631466.jpg",
+     "image_url_small": "https://images.ygoprodeck.com/images/cards_small/64631466.jpg"
+    }
+   ]
+  },
+  {
+   "id": 41462083,
+   "name": "Thousand Dragon",
+   "type": "Fusion Monster",
+   "desc": "A dragon aged by time magic.",
+   "race": "Dragon",
+   "attribute": "WIND",
+   "atk": 2400,
+   "def": 2000,
+   "level": 7,
+   "card_sets": [
+    {
+     "set_name": "Metal Raiders",
+     "set_code": "MRD-143",
+     "set_rarity": "Secret Rare"
+    }
+   ],
+   "card_images": [
+    {
+     "id": 41462083,
+     "image_url": "https://images.ygoprodeck.com/images/cards/41462083.jpg",
+     "image_url_small": "https://images.ygoprodeck.com/images/cards_small/41462083.jpg"
+    }
+   ]
+  },
+  {
+   "id": 44508094,
+   "name": "Stardust Dragon",
+   "type": "Synchro Monster",
+   "desc": "Tributes itself to negate a destruction effect.",
+   "race": "Dragon",
+   "attribute": "WIND",
+   "atk": 2500,
+   "def": 2000,
+   "level": 8,
+   "card_sets": [
+    {
+     "set_name": "The Duelist Genesis",
+     "set_code": "TDGS-EN040",
+     "set_rarity": "Ultra Rare"
+    },
+    {
+     "set_name": "The Duelist Genesis",
+     "set_code": "TDGS-EN040",
+     "set_rarity": "Ghost Rare"
+    }
+   ],
+   "card_images": [
+    {
+     "id": 44508094,
+     "image_url": "https://images.ygoprodeck.com/images/cards/44508094.jpg",
+     "image_url_small": "https://images.ygoprodeck.com/images/cards_small/44508094.jpg"
+    }
+   ]
+  },
+  {
+   "id": 84013237,
+   "name": "Number 39: Utopia",
+   "type": "XYZ Monster",
+   "desc": "Detach material to negate an attack.",
+   "race": "Warrior",
+   "attribute": "LIGHT",
+   "atk": 2500,
+   "def": 2000,
+   "level": 4,
+   "card_sets": [
+    {
+     "set_name": "Generation Force",
+     "set_code": "GENF-EN039",
+     "set_rarity": "Ultra Rare"
+    }
+   ],
+   "card_images": [
+    {
+     "id": 84013237,
+     "image_url": "https://images.ygoprodeck.com/images/cards/84013237.jpg",
+     "image_url_small": "https://images.ygoprodeck.com/images/cards_small/84013237.jpg"
+    }
+   ]
+  },
+  {
+   "id": 1861629,
+   "name": "Decode Talker",
+   "type": "Link Monster",
+   "desc": "Gains ATK for each monster it points to.",
+   "race": "Cyberse",
+   "attribute": "DARK",
+   "atk": 2300,
+   "linkval": 3,
+   "card_sets": [
+    {
+     "set_name": "Structure Deck: Powercode Link",
+     "set_code": "SDPL-EN041",
+     "set_rarity": "Ultra Rare"
+    }
+   ],
+   "card_images": [
+    {
+     "id": 1861629,
+     "image_url": "https://images.ygoprodeck.com/images/cards/1861629.jpg",
+     "image_url_small": "https://images.ygoprodeck.com/images/cards_small/1861629.jpg"
+    }
+   ]
+  },
+  {
+   "id": 16178681,
+   "name": "Odd-Eyes Pendulum Dragon",
+   "type": "Pendulum Effect Monster",
+   "desc": "Doubles battle damage to a Level 5+ monster.",
+   "race": "Dragon",
+   "attribute": "DARK",
+   "atk": 2500,
+   "def": 2000,
+   "level": 7,
+   "scale": 4,
+   "pend_desc": "Pendulum effect summary.",
+   "monster_desc": "Doubles battle damage to a Level 5+ monster.",
+   "card_sets": [
+    {
+     "set_name": "Duelist Alliance",
+     "set_code": "DUEA-EN004",
+     "set_rarity": "Super Rare"
+    }
+   ],
+   "card_images": [
+    {
+     "id": 16178681,
+     "image_url": "https://images.ygoprodeck.com/images/cards/16178681.jpg",
+     "image_url_small": "https://images.ygoprodeck.com/images/cards_small/16178681.jpg"
+    }
+   ]
+  },
+  {
+   "id": 55144522,
+   "name": "Pot of Greed",
+   "type": "Spell Card",
+   "desc": "Draw 2 cards.",
+   "race": "Normal",
+   "card_sets": [
+    {
+     "set_name": "Legend of Blue Eyes White Dragon",
+     "set_code": "LOB-119",
+     "set_rarity": "Rare"
+    }
+   ],
+   "card_images": [
+    {
+     "id": 55144522,
+     "image_url": "https://images.ygoprodeck.com/images/cards/55144522.jpg",
+     "image_url_small": "https://images.ygoprodeck.com/images/cards_small/55144522.jpg"
+    }
+   ]
+  },
+  {
+   "id": 83764718,
+   "name": "Monster Reborn",
+   "type": "Spell Card",
+   "desc": "Special Summon a monster from either GY.",
+   "race": "Normal",
+   "card_sets": [
+    {
+     "set_name": "Legend of Blue Eyes White Dragon",
+     "set_code": "LOB-118",
+     "set_rarity": "Ultra Rare"
+    }
+   ],
+   "card_images": [
+    {
+     "id": 83764718,
+     "image_url": "https://images.ygoprodeck.com/images/cards/83764718.jpg",
+     "image_url_small": "https://images.ygoprodeck.com/images/cards_small/83764718.jpg"
+    }
+   ]
+  },
+  {
+   "id": 47453433,
+   "name": "Back to Square One",
+   "type": "Spell Card",
+   "desc": "Discard 1 card to return a monster to the top of the Deck.",
+   "race": "Normal",
+   "card_sets": [
+    {
+     "set_name": "Pharaonic Guardian",
+     "set_code": "PGD-039",
+     "set_rarity": "Common"
+    }
+   ],
+   "card_images": [
+    {
+     "id": 47453433,
+     "image_url": "https://images.ygoprodeck.com/images/cards/47453433.jpg",
+     "image_url_small": "https://images.ygoprodeck.com/images/cards_small/47453433.jpg"
+    }
+   ]
+  },
+  {
+   "id": 5318639,
+   "name": "Mystical Space Typhoon",
+   "type": "Spell Card",
+   "desc": "Destroy one Spell or Trap on the field.",
+   "race": "Quick-Play",
+   "card_sets": [
+    {
+     "set_name": "Magic Ruler",
+     "set_code": "MRL-047",
+     "set_rarity": "Ultra Rare"
+    }
+   ],
+   "card_images": [
+    {
+     "id": 5318639,
+     "image_url": "https://images.ygoprodeck.com/images/cards/5318639.jpg",
+     "image_url_small": "https://images.ygoprodeck.com/images/cards_small/5318639.jpg"
+    }
+   ]
+  },
+  {
+   "id": 44095762,
+   "name": "Mirror Force",
+   "type": "Trap Card",
+   "desc": "Destroy all the attacker's Attack Position monsters.",
+   "race": "Normal",
+   "card_sets": [
+    {
+     "set_name": "Metal Raiders",
+     "set_code": "MRD-138",
+     "set_rarity": "Ultra Rare"
+    }
+   ],
+   "card_images": [
+    {
+     "id": 44095762,
+     "image_url": "https://images.ygoprodeck.com/images/cards/44095762.jpg",
+     "image_url_small": "https://images.ygoprodeck.com/images/cards_small/44095762.jpg"
+    }
+   ]
+  },
+  {
+   "id": 97077563,
+   "name": "Call of the Haunted",
+   "type": "Trap Card",
+   "desc": "Special Summon a monster from your GY.",
+   "race": "Continuous",
+   "card_sets": [
+    {
+     "set_name": "Pharaoh's Servant",
+     "set_code": "PSV-012",
+     "set_rarity": "Super Rare"
+    }
+   ],
+   "card_images": [
+    {
+     "id": 97077563,
+     "image_url": "https://images.ygoprodeck.com/images/cards/97077563.jpg",
+     "image_url_small": "https://images.ygoprodeck.com/images/cards_small/97077563.jpg"
+    }
+   ]
+  }
+ ]
+}

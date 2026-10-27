@@ -18,7 +18,8 @@ async function run(name, viewport, steps) {
   // Image downloads can fail (offline, CORS, blocked hosts): the app falls back on its own.
   const expected = /Failed to load resource|CORS|ERR_|net::/;
   page.on("console", (message) => message.type() === "error" && !expected.test(message.text()) && errors.push(`${name}: ${message.text()}`));
-  await page.goto(url + (url.includes("?") ? "&" : "?") + "debug");
+  // The test database (tests/fixtures/cardinfo.json) must be served next to the app.
+  await page.goto(url + (url.includes("?") ? "&" : "?") + "debug&catalog=cardinfo.json");
   await page.waitForSelector(".scene-canvas");
   await page.waitForTimeout(800);
   await steps(page);
@@ -89,8 +90,16 @@ await run("desktop", { width: 1440, height: 900 }, async (page) => {
 await run("phone", { width: 412, height: 860 }, async (page) => {
   await page.keyboard.press("ArrowRight");
   await page.waitForTimeout(1200);
-  await addCard(page, "Dark Magician");
+  // Dark Magician has three artworks: pick the second one.
+  await page.click(".button.add");
+  await page.fill('input[type="search"]', "dark magician");
   await page.waitForTimeout(500);
+  await page.click(".result >> nth=0");
+  await page.waitForSelector(".dialog-actions .button.primary");
+  await page.selectOption('select:has(option:text("Artwork 2"))', { label: "Artwork 2" });
+  await shot(page, "08b-add-dialog");
+  await page.click(".dialog-actions .button.primary");
+  await page.waitForTimeout(1200);
   await shot(page, "09-phone");
   await page.click(".sheet-close");
   await page.waitForTimeout(700);

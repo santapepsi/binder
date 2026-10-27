@@ -10,7 +10,7 @@ export const ygoprodeckArtwork = (id: number | string): Artwork => ({
   smallUrl: `${BASE}/cards_small/${id}.jpg`,
 });
 
-/** Builds artworks from YGOPRODeck image URLs (e.g. Cardmática's artwork source_url). */
+/** Builds an artwork from a YGOPRODeck image URL. */
 export function artworkFromUrl(url: string): Artwork | null {
   const match = /\/images\/cards(?:_small|_cropped)?\/(\d+)\.(?:jpg|png|webp)$/i.exec(url);
   return match ? ygoprodeckArtwork(match[1]) : null;

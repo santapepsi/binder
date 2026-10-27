@@ -2,15 +2,13 @@
 // the Settings dialog, so one web build serves every setup.
 
 export interface Settings {
-  /** Cardmática base URL, e.g. http://192.168.1.20:8000. Empty = built-in demo catalog. */
-  catalogUrl: string;
   supabaseUrl: string;
   supabaseKey: string;
 }
 
 const KEY = "binder.settings";
 
-const defaults: Settings = { catalogUrl: "", supabaseUrl: "", supabaseKey: "" };
+const defaults: Settings = { supabaseUrl: "", supabaseKey: "" };
 
 export function loadSettings(): Settings {
   try {

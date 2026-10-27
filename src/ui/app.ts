@@ -1,6 +1,6 @@
 // Wires the store, catalog, sync, 3D scene and the surrounding UI together.
 
-import { createCatalog, type Catalog } from "../data/catalog.ts";
+import { Catalog } from "../data/catalog.ts";
 import { loadSettings, type Settings } from "../data/settings.ts";
 import { Store } from "../data/store.ts";
 import { configureImages, persistStorage } from "../data/images.ts";
@@ -21,7 +21,9 @@ export async function startApp(root: HTMLElement) {
   const store = new Store();
   await store.load();
   let settings: Settings = loadSettings();
-  let catalog: Catalog = createCatalog(settings.catalogUrl);
+  // ?debug&catalog=<url> loads a local test database instead of YGOPRODeck.
+  const params = new URLSearchParams(location.search);
+  const catalog = params.has("debug") && params.get("catalog") ? new Catalog(params.get("catalog")!) : new Catalog();
   const sync = new Sync(store, settings);
   configureImages(settings);
   persistStorage();
@@ -152,10 +154,8 @@ export async function startApp(root: HTMLElement) {
   }
 
   function settingsDialog() {
-    openSettings(settings, sync, (next) => {
-      const catalogChanged = next.catalogUrl !== settings.catalogUrl;
+    openSettings(settings, sync, catalog, (next) => {
       settings = next;
-      if (catalogChanged) catalog = createCatalog(settings.catalogUrl);
       sync.configure(settings);
       configureImages(settings);
     });

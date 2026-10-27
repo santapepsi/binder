@@ -2,7 +2,7 @@
   "name": "binder",
   "version": "0.1.0",
   "private": true,
-  "description": "3D Yu-Gi-Oh! card binder for web and Android, reading its catalog from Cardmática.",
+  "description": "3D Yu-Gi-Oh! card binder for web and Android, with the full YGOPRODeck card database.",
   "type": "module",
   "scripts": {
     "dev": "node scripts/build.mjs --serve",

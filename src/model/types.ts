@@ -1,5 +1,5 @@
 // Core data model. Everything a binder needs to render offline is stored on the
-// copy itself (a snapshot of the catalog card), so the catalog is only needed
+// copy itself (a snapshot of the card from the database), so the database is only needed
 // when adding cards or choosing a printing.
 
 export type BinderKind =
@@ -35,9 +35,9 @@ export interface Artwork {
   smallUrl: string; // small size, used in the pockets
 }
 
-/** Catalog card as stored on a binder copy (subset of Cardmática's CardDetail). */
+/** Card data as stored on a binder copy. */
 export interface CardSnapshot {
-  catalogId: string; // Cardmática card UUID (or demo id)
+  catalogId: string; // YGOPRODeck card id
   ygoprodeckId: number | null;
   name: string;
   cardType: "Monster" | "Spell" | "Trap" | "Skill" | string;
@@ -58,7 +58,7 @@ export interface CardSnapshot {
 }
 
 export interface PrintingRef {
-  id: string | null; // Cardmática printing UUID when chosen from the catalog
+  id: string | null; // "<code>|<rarity>" when chosen from the database
   code: string; // e.g. LOB-EN001
   setName: string;
   rarity: string;

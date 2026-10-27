@@ -75,7 +75,8 @@ export class Store extends EventTarget {
   async addCard(binderId: string, card: CardSnapshot, copy: NewCopy, slot?: number): Promise<BinderCard> {
     let target = this.binders.get(binderId)!;
     if (target.kind !== "personal") {
-      const routed = this.binderForCard(card);
+      // Skills and tokens have no type binder: they go to the first personal one.
+      const routed = this.binderForCard(card) ?? this.liveBinders().find((binder) => binder.kind === "personal") ?? null;
       if (routed && routed.id !== target.id) {
         target = routed;
         slot = undefined;

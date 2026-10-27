@@ -24,7 +24,7 @@ export function openAddCard(options: {
   // ---- step 1: search
   const input = h("input", {
     type: "search",
-    placeholder: `Search ${catalog.label}…`,
+    placeholder: "Search by card name…",
     autocomplete: "off",
     enterkeyhint: "search",
     "aria-label": "Search cards",
@@ -35,25 +35,34 @@ export function openAddCard(options: {
   more.hidden = true;
   let page = 1;
   let query = "";
-  let controller: AbortController | null = null;
   let timer = 0;
+  let latest = 0;
 
   const run = async (append = false) => {
-    controller?.abort();
-    controller = new AbortController();
+    const ticket = ++latest;
     if (!append) page = 1;
-    status.textContent = "Searching…";
     try {
-      const { items, total } = await catalog.search(query, page, controller.signal);
+      if (!catalog.ready) {
+        // First use: download the whole card database once (texts, sets, artworks).
+        await catalog.ensure(({ phase, bytes }) => {
+          status.textContent =
+            phase === "checking"
+              ? "Checking the card database…"
+              : phase === "saving"
+                ? "Saving the card database on this device…"
+                : `Downloading the card database (first time only)… ${((bytes ?? 0) / 1048576).toFixed(1)} MB`;
+        });
+      }
+      const { items, total } = await catalog.search(query, page);
+      if (ticket !== latest) return;
       if (!append) results.replaceChildren();
       items.forEach((hit) => results.append(resultRow(hit)));
       status.textContent = total ? `${total} card${total === 1 ? "" : "s"}` : "No cards found.";
       more.hidden = page * PAGE_SIZE >= total;
     } catch (error) {
-      if ((error as Error).name === "AbortError") return;
       status.textContent = offline
-        ? "You are offline. Adding cards needs a connection to the catalog."
-        : `Could not reach the catalog: ${(error as Error).message}`;
+        ? "You are offline. The card database is downloaded the first time you add a card; connect once to get it."
+        : `Could not get the card database: ${(error as Error).message}`;
     }
   };
 
@@ -96,7 +105,10 @@ export function openAddCard(options: {
       return;
     }
     const copy: NewCopy = { printing: null, artworkId: null, condition: "Near Mint", language: "English", edition: "Unlimited", notes: "" };
-    const target = binder.kind === "personal" ? binder : store.binderForCard(card) ?? binder;
+    const target =
+      binder.kind === "personal"
+        ? binder
+        : store.binderForCard(card) ?? store.liveBinders().find((entry) => entry.kind === "personal") ?? binder;
     const add = h("button", { class: "button primary" }, icon("plus", `Add to ${target.name}`));
     add.addEventListener("click", async () => {
       add.disabled = true;

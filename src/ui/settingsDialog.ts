@@ -1,6 +1,6 @@
-// Settings: where the catalog comes from, and the account used for sync.
+// Settings: the card database on this device, and the account used for sync.
 
-import { CardmaticaCatalog } from "../data/catalog.ts";
+import type { Catalog } from "../data/catalog.ts";
 import { saveSettings, trimUrl, type Settings } from "../data/settings.ts";
 import type { Sync, SyncStatus } from "../sync/sync.ts";
 import { dialogShell, field, h, openDialog } from "./dom.ts";
@@ -22,21 +22,33 @@ export function describeStatus(status: SyncStatus): string {
   }
 }
 
-export function openSettings(settings: Settings, sync: Sync, onSaved: (settings: Settings) => void) {
-  const catalogUrl = h("input", { type: "url", value: settings.catalogUrl, placeholder: "http://192.168.1.20:8000", spellcheck: false });
-  const catalogStatus = h("small", { class: "muted" });
-  const test = h("button", { class: "button ghost", type: "button", text: "Test" });
-  test.addEventListener("click", async () => {
-    const url = trimUrl(catalogUrl.value);
-    if (!url) return (catalogStatus.textContent = "Empty: the built-in demo catalog is used.");
-    catalogStatus.textContent = "Checking…";
+export function openSettings(settings: Settings, sync: Sync, catalog: Catalog, onSaved: (settings: Settings) => void) {
+  const catalogStatus = h("p", { class: "muted" });
+  const describeCatalog = () => {
+    const info = catalog.info();
+    catalogStatus.textContent = info.cards
+      ? `${info.cards.toLocaleString()} cards on this device, downloaded ${new Date(info.updatedAt!).toLocaleDateString()}.`
+      : "Not downloaded yet. It downloads the first time you add a card.";
+  };
+  const update = h("button", { class: "button ghost", type: "button", text: "Check for updates" });
+  update.addEventListener("click", async () => {
+    update.disabled = true;
     try {
-      const { total } = await new CardmaticaCatalog(url).search("", 1);
-      catalogStatus.textContent = `Connected: ${total.toLocaleString()} cards.`;
+      const progress = ({ phase, bytes }: { phase: string; bytes?: number }) =>
+        (catalogStatus.textContent =
+          phase === "downloading" ? `Downloading… ${((bytes ?? 0) / 1048576).toFixed(1)} MB` : phase === "saving" ? "Saving…" : "Checking…");
+      if (!catalog.ready) await catalog.ensure(progress);
+      const changed = await catalog.refreshIfChanged(progress);
+      describeCatalog();
+      if (!changed) catalogStatus.textContent += " It is up to date.";
     } catch (error) {
-      catalogStatus.textContent = `Could not connect (${(error as Error).message}). Check the address and that Cardmática allows this app in CORS_ORIGINS.`;
+      catalogStatus.textContent = `Could not update: ${(error as Error).message}`;
+    } finally {
+      update.disabled = false;
     }
   });
+  catalog.ensure().then(describeCatalog, describeCatalog);
+  describeCatalog();
 
   const supabaseUrl = h("input", { type: "url", value: settings.supabaseUrl, placeholder: "https://xxxx.supabase.co", spellcheck: false });
   const supabaseKey = h("input", { type: "text", value: settings.supabaseKey, placeholder: "Publishable (anon) key", spellcheck: false });
@@ -47,7 +59,6 @@ export function openSettings(settings: Settings, sync: Sync, onSaved: (settings:
   sync.addEventListener("status", () => (status.textContent = describeStatus(sync.status)));
 
   const collect = (): Settings => ({
-    catalogUrl: trimUrl(catalogUrl.value),
     supabaseUrl: trimUrl(supabaseUrl.value),
     supabaseKey: supabaseKey.value.trim(),
   });
@@ -114,9 +125,9 @@ export function openSettings(settings: Settings, sync: Sync, onSaved: (settings:
     h(
       "section",
       { class: "settings-section" },
-      h("h3", { text: "Card catalog" }),
-      field("Cardmática server", h("div", { class: "color-row" }, catalogUrl, test), "Leave empty to use the small demo catalog."),
-      catalogStatus
+      h("h3", { text: "Card database" }),
+      catalogStatus,
+      h("div", { class: "dialog-actions start" }, update)
     ),
     h(
       "section",
@@ -129,7 +140,7 @@ export function openSettings(settings: Settings, sync: Sync, onSaved: (settings:
     h(
       "p",
       { class: "credits" },
-      "Card data and images come from Cardmática, which maintains them from YGOPRODeck. Yu-Gi-Oh! is a trademark of Konami; this app is not affiliated with Konami."
+      "Card texts and images come from YGOPRODeck. Yu-Gi-Oh! is a trademark of Konami; this app is not affiliated with Konami."
     )
   );
   dialog.addEventListener("close", persist);

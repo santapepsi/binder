@@ -76,7 +76,7 @@ export function copyFields(
 
   printingSlot.append(h("p", { class: "muted", text: "Loading printings…" }));
   catalog
-    .printings(card.catalogId)
+    .printings(card.catalogId, false)
     .then((printings) => (printings.length ? fromCatalog(printings) : manual()))
     .catch(manual);
 

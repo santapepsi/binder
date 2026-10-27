@@ -865,3 +865,7 @@ input[type="file"] {
     display: none;
   }
 }
+
+.dialog-actions.start {
+  justify-content: flex-start;
+}

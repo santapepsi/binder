@@ -30,8 +30,10 @@ jobs:
       - name: Browser smoke test
         run: |
           npx playwright install --with-deps chromium
+          cp tests/fixtures/cardinfo.json dist/
           (cd dist && python3 -m http.server 8765 &) && sleep 1
           node scripts/screenshot.mjs http://localhost:8765/ screenshots
+          rm dist/cardinfo.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:
