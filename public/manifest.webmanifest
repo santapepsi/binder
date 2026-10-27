@@ -1,0 +1,10 @@
+{
+  "name": "Binder",
+  "short_name": "Binder",
+  "start_url": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#1b0f0c",
+  "theme_color": "#1b0f0c",
+  "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}

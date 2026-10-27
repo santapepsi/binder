@@ -1,0 +1,26 @@
+{
+  "name": "binder",
+  "version": "0.1.0",
+  "private": true,
+  "description": "3D Yu-Gi-Oh! card binder for web and Android, reading its catalog from Cardmática.",
+  "type": "module",
+  "scripts": {
+    "dev": "node scripts/build.mjs --serve",
+    "build": "node scripts/build.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test --experimental-strip-types \"tests/*.test.ts\"",
+    "android:sync": "npm run build && cap sync android"
+  },
+  "dependencies": {
+    "three": "0.185.1"
+  },
+  "devDependencies": {
+    "@capacitor/android": "^7.4.0",
+    "@capacitor/cli": "^7.4.0",
+    "@capacitor/core": "^7.4.0",
+    "@types/three": "0.185.0",
+    "esbuild": "^0.25.0",
+    "playwright": "^1.55.0",
+    "typescript": "^5.9.0"
+  }
+}
