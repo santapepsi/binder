@@ -2,7 +2,7 @@
 // the details of your copy.
 
 import type { Catalog } from "../data/catalog.ts";
-import { cardImage } from "../data/images.ts";
+import { cardImage, prefetchCard } from "../data/images.ts";
 import type { Store } from "../data/store.ts";
 import { frameOf, rarityTag, typeLine } from "../model/classify.ts";
 import { pageOfSlot, pocketOfSlot } from "../model/layout.ts";
@@ -25,7 +25,7 @@ export class DetailPanel {
     document.body.classList.toggle("has-selection", !!card);
     if (!card) return this.empty(binder);
     const art = h("div", { class: "detail-art" });
-    cardImage(card.card, "full").then((image) => {
+    cardImage(card.card, "full", card.artworkId).then((image) => {
       if (this.current?.id !== card.id) return;
       const canvas = h("canvas", { width: image.width, height: image.height, "aria-label": card.card.name });
       canvas.getContext("2d")!.drawImage(image, 0, 0);
@@ -67,7 +67,14 @@ export class DetailPanel {
             tag ? h("span", { class: "rarity-chip", text: tag }) : null,
             h("small", { text: `Page ${pageOfSlot(card.slot) + 1} · pocket ${pocketOfSlot(card.slot) + 1}` })
           ),
-          copyFields(this.getCatalog(), info, { ...card }, (patch) => this.store.updateCard(card.id, patch)),
+          copyFields(this.getCatalog(), info, { ...card }, (patch) => {
+            this.store.updateCard(card.id, patch);
+            if ("artworkId" in patch) {
+              prefetchCard(info, patch.artworkId).catch(() => undefined);
+              const updated = this.store.cards.get(card.id);
+              if (updated) this.show(updated, binder);
+            }
+          }),
           h(
             "div",
             { class: "detail-actions" },

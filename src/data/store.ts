@@ -6,7 +6,7 @@ import { firstFreeSlot } from "../model/layout.ts";
 import type { Binder, BinderCard, BinderKind, CardSnapshot } from "../model/types.ts";
 import * as db from "./db.ts";
 
-export type NewCopy = Pick<BinderCard, "printing" | "condition" | "language" | "edition" | "notes">;
+export type NewCopy = Pick<BinderCard, "printing" | "artworkId" | "condition" | "language" | "edition" | "notes">;
 
 export const uuid = () =>
   globalThis.crypto?.randomUUID?.() ??

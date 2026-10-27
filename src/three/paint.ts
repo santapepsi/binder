@@ -167,12 +167,26 @@ const RARITY_STYLE: Record<string, string> = {
   CR: "#9e4f1c",
 };
 
+function wrapText(context: CanvasRenderingContext2D, text: string, width: number): string[] {
+  const lines: string[] = [];
+  let line = "";
+  for (const word of text.split(/\s+/)) {
+    const candidate = line ? `${line} ${word}` : word;
+    if (context.measureText(candidate).width > width && line) {
+      lines.push(line);
+      line = word;
+    } else line = candidate;
+  }
+  if (line) lines.push(line);
+  return lines;
+}
+
 export interface PagePainterInput {
   page: number;
   holesOnLeft: boolean;
   cards: Map<number, BinderCard>; // pocket -> card
   hiddenPocket: number | null;
-  images: Map<string, Drawable>; // card id -> image ready to draw
+  imageFor: (card: BinderCard) => Drawable | undefined; // undefined while downloading
 }
 
 /** One side of a pocket page. Returns the canvas; call again to repaint the same canvas. */
@@ -211,15 +225,25 @@ export function paintPage(target: HTMLCanvasElement | null, input: PagePainterIn
     const card = pocket === input.hiddenPocket ? undefined : input.cards.get(pocket);
     if (card) {
       const cr = cardRect(pocket, input.holesOnLeft);
-      const image = input.images.get(card.id);
+      const image = input.imageFor(card);
       context.save();
       context.shadowColor = "rgba(40,25,15,0.45)";
       context.shadowBlur = 6;
       context.shadowOffsetY = 2;
       if (image) context.drawImage(image, cr.x * s, cr.y * s, cr.w * s, cr.h * s);
       else {
-        context.fillStyle = "#6d6152";
+        // Still downloading: just the card name.
+        context.fillStyle = "#2f2822";
         context.fillRect(cr.x * s, cr.y * s, cr.w * s, cr.h * s);
+        context.shadowColor = "transparent";
+        context.fillStyle = "#f3e2b0";
+        context.font = `900 ${0.62 * s}px Nunito, system-ui, sans-serif`;
+        context.textAlign = "center";
+        context.textBaseline = "middle";
+        const lines = wrapText(context, card.card.name, (cr.w - 0.6) * s).slice(0, 5);
+        const lineHeight = 0.8 * s;
+        const top = (cr.y + cr.h / 2) * s - ((lines.length - 1) * lineHeight) / 2;
+        lines.forEach((line, index) => context.fillText(line, (cr.x + cr.w / 2) * s, top + index * lineHeight));
       }
       context.restore();
       const tag = rarityTag(card.printing?.rarity);

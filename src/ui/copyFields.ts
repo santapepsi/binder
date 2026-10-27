@@ -3,6 +3,7 @@
 
 import type { Catalog, CatalogPrinting } from "../data/catalog.ts";
 import type { NewCopy } from "../data/store.ts";
+import { artworksOf } from "../model/artworks.ts";
 import { CONDITIONS, EDITIONS, LANGUAGES, type CardSnapshot, type PrintingRef } from "../model/types.ts";
 import { field, h, select } from "./dom.ts";
 
@@ -79,6 +80,23 @@ export function copyFields(
     .then((printings) => (printings.length ? fromCatalog(printings) : manual()))
     .catch(manual);
 
+  // Alternate artworks: listed by number, the image shows once the card is in the binder.
+  const artworks = artworksOf(card);
+  let artworkField: HTMLElement | null = null;
+  if (artworks.length > 1) {
+    const options = artworks.map((_, index) => (index === 0 ? "Artwork 1 (main)" : `Artwork ${index + 1}`));
+    const current = Math.max(0, artworks.findIndex((art) => art.id === value.artworkId));
+    artworkField = field(
+      "Artwork",
+      select(options, options[current], (label) => {
+        const artworkId = artworks[options.indexOf(label)].id;
+        value.artworkId = artworkId;
+        onChange({ artworkId });
+      }),
+      `This card has ${artworks.length} artworks.`
+    );
+  }
+
   const notes = h("textarea", { rows: 2, placeholder: "Notes", value: value.notes });
   notes.addEventListener("change", () => onChange({ notes: notes.value }));
 
@@ -86,6 +104,7 @@ export function copyFields(
     "div",
     { class: "copy-fields" },
     printingSlot,
+    artworkField,
     h(
       "div",
       { class: "field-row" },

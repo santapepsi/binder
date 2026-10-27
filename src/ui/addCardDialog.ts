@@ -2,7 +2,7 @@
 
 import type { Catalog, CatalogHit } from "../data/catalog.ts";
 import { PAGE_SIZE } from "../data/catalog.ts";
-import { cardImage, prefetchCard } from "../data/images.ts";
+import { prefetchCard } from "../data/images.ts";
 import type { NewCopy, Store } from "../data/store.ts";
 import { frameOf, typeLine } from "../model/classify.ts";
 import type { Binder, BinderCard, CardSnapshot } from "../model/types.ts";
@@ -95,20 +95,14 @@ export function openAddCard(options: {
       status.textContent = `Could not load the card: ${(error as Error).message}`;
       return;
     }
-    const copy: NewCopy = { printing: null, condition: "Near Mint", language: "English", edition: "Unlimited", notes: "" };
+    const copy: NewCopy = { printing: null, artworkId: null, condition: "Near Mint", language: "English", edition: "Unlimited", notes: "" };
     const target = binder.kind === "personal" ? binder : store.binderForCard(card) ?? binder;
-    const preview = h("div", { class: "add-preview" });
-    cardImage(card, "thumb").then((image) => {
-      const canvas = h("canvas", { width: image.width, height: image.height });
-      canvas.getContext("2d")!.drawImage(image, 0, 0);
-      preview.replaceChildren(canvas);
-    });
     const add = h("button", { class: "button primary" }, icon("plus", `Add to ${target.name}`));
     add.addEventListener("click", async () => {
       add.disabled = true;
       const slot = target.id === binder.id ? options.slot : undefined;
       const entry = await store.addCard(binder.id, card, copy, slot);
-      prefetchCard(card).catch(() => undefined);
+      prefetchCard(card, copy.artworkId).catch(() => undefined);
       dialog.close();
       options.onAdded(entry);
     });
@@ -117,14 +111,9 @@ export function openAddCard(options: {
       h(
         "div",
         { class: "add-card" },
-        preview,
-        h(
-          "div",
-          {},
-          h("h3", { class: "card-name", text: card.name }),
-          h("div", { class: `type-tag frame-${frameOf(card)}`, text: `[${typeLine(card)}]` }),
-          target.id !== binder.id ? h("p", { class: "muted", text: `Goes to the ${target.name} binder.` }) : null
-        )
+        h("h3", { class: "card-name", text: card.name }),
+        h("div", { class: `type-tag frame-${frameOf(card)}`, text: `[${typeLine(card)}]` }),
+        target.id !== binder.id ? h("p", { class: "muted", text: `Goes to the ${target.name} binder.` }) : null
       ),
       copyFields(catalog, card, copy, (patch) => Object.assign(copy, patch)),
       h("div", { class: "dialog-actions" }, add)

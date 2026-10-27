@@ -15,7 +15,9 @@ const errors = [];
 async function run(name, viewport, steps) {
   const page = await browser.newPage({ viewport, deviceScaleFactor: 1 });
   page.on("pageerror", (error) => errors.push(`${name}: ${error.message}`));
-  page.on("console", (message) => message.type() === "error" && errors.push(`${name}: ${message.text()}`));
+  // Image downloads can fail (offline, CORS, blocked hosts): the app falls back on its own.
+  const expected = /Failed to load resource|CORS|ERR_|net::/;
+  page.on("console", (message) => message.type() === "error" && !expected.test(message.text()) && errors.push(`${name}: ${message.text()}`));
   await page.goto(url + (url.includes("?") ? "&" : "?") + "debug");
   await page.waitForSelector(".scene-canvas");
   await page.waitForTimeout(800);

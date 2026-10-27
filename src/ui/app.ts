@@ -3,6 +3,7 @@
 import { createCatalog, type Catalog } from "../data/catalog.ts";
 import { loadSettings, type Settings } from "../data/settings.ts";
 import { Store } from "../data/store.ts";
+import { configureImages, persistStorage } from "../data/images.ts";
 import * as db from "../data/db.ts";
 import { pagesOfSpread } from "../model/layout.ts";
 import type { Binder, BinderCard } from "../model/types.ts";
@@ -22,6 +23,8 @@ export async function startApp(root: HTMLElement) {
   let settings: Settings = loadSettings();
   let catalog: Catalog = createCatalog(settings.catalogUrl);
   const sync = new Sync(store, settings);
+  configureImages(settings);
+  persistStorage();
 
   const lastId = await db.get<string>("meta", "currentBinder").catch(() => undefined);
   let binder: Binder = store.binders.get(lastId ?? "") ?? store.liveBinders()[0];
@@ -154,6 +157,7 @@ export async function startApp(root: HTMLElement) {
       settings = next;
       if (catalogChanged) catalog = createCatalog(settings.catalogUrl);
       sync.configure(settings);
+      configureImages(settings);
     });
   }
 

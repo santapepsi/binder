@@ -2,7 +2,8 @@
 // API (/api/v1); the binder never writes to it. Without a configured server a
 // small built-in demo catalog is used so the app can be tried right away.
 
-import type { CardSnapshot, PrintingRef } from "../model/types.ts";
+import { artworkFromUrl, sortArtworks, ygoprodeckArtwork } from "../model/artworks.ts";
+import type { Artwork, CardSnapshot, PrintingRef } from "../model/types.ts";
 
 export interface CatalogHit {
   id: string;
@@ -30,6 +31,7 @@ export const PAGE_SIZE = 24;
 interface ApiImage {
   url: string | null;
   thumbnail_url: string | null;
+  source_url?: string;
 }
 interface ApiSummary {
   id: string;
@@ -101,6 +103,10 @@ export class CardmaticaCatalog implements Catalog {
     const current = data.texts.filter((text) => text.is_current);
     const text = current.find((entry) => entry.language === "en") ?? current[0] ?? data.texts[0];
     const image = data.image?.url ? data.image : data.artworks.find((art) => art.url) ?? null;
+    const artworks = data.artworks
+      .map((art) => (art.source_url ? artworkFromUrl(art.source_url) : null))
+      .filter((art): art is Artwork => art !== null);
+    if (!artworks.length && data.ygoprodeck_id) artworks.push(ygoprodeckArtwork(data.ygoprodeck_id));
     return {
       catalogId: data.id,
       ygoprodeckId: data.ygoprodeck_id,
@@ -118,6 +124,7 @@ export class CardmaticaCatalog implements Catalog {
       pendulumText: text?.pendulum_text ?? null,
       imageUrl: this.absolute(image?.url),
       thumbnailUrl: this.absolute(image?.thumbnail_url ?? image?.url),
+      artworks: sortArtworks(artworks, data.ygoprodeck_id),
     };
   }
 

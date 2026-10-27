@@ -33,6 +33,7 @@ interface CardRow {
   slot: number;
   card: BinderCard["card"];
   printing: BinderCard["printing"];
+  artwork_id: string | null;
   condition: string;
   language: string;
   edition: string;
@@ -370,6 +371,7 @@ function toCardRow(card: BinderCard): CardRow {
     slot: card.slot,
     card: card.card,
     printing: card.printing,
+    artwork_id: card.artworkId ?? null,
     condition: card.condition,
     language: card.language,
     edition: card.edition,
@@ -386,6 +388,7 @@ function fromCardRow(row: CardRow): BinderCard {
     slot: row.slot,
     card: row.card,
     printing: row.printing,
+    artworkId: row.artwork_id,
     condition: row.condition as BinderCard["condition"],
     language: row.language,
     edition: row.edition as BinderCard["edition"],

@@ -58,6 +58,7 @@ interface Tween {
   done(): void;
 }
 
+const imageKey = (card: BinderCard) => `${card.id}|${card.artworkId ?? ""}`;
 const ease = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 const SPREAD_HALF = PAGE_GAP + PAGE_W;
 
@@ -239,6 +240,7 @@ export class BinderScene {
     this.resize();
     new ResizeObserver(() => this.resize()).observe(container);
     this.bindPointer();
+    window.addEventListener("online", () => this.retryImages());
     this.renderer.setAnimationLoop((time: number) => this.frame(time));
   }
 
@@ -516,21 +518,41 @@ export class BinderScene {
       const card = this.cards.get(slotOf(page, pocket));
       if (!card) continue;
       cards.set(pocket, card);
-      if (!this.images.has(card.id)) this.requestImage(card, page);
+      if (!this.images.has(imageKey(card))) this.requestImage(card, page);
     }
     const hidden = this.hiddenSlot !== null && pageOfSlot(this.hiddenSlot) === page ? pocketOfSlot(this.hiddenSlot) : null;
-    return paintPage(canvas, { page, holesOnLeft: page % 2 === 0, cards, hiddenPocket: hidden, images: this.images });
+    return paintPage(canvas, {
+      page,
+      holesOnLeft: page % 2 === 0,
+      cards,
+      hiddenPocket: hidden,
+      imageFor: (card) => this.images.get(imageKey(card)),
+    });
   }
 
   private requestImage(card: BinderCard, page: number) {
-    const key = `${card.id}:${card.card.catalogId}`;
+    const key = imageKey(card);
     if (this.loading.has(key)) return;
     this.loading.add(key);
-    cardImage(card.card, "thumb").then((image) => {
+    cardImage(card.card, "thumb", card.artworkId).then((image) => {
       this.loading.delete(key);
-      this.images.set(card.id, image);
+      this.images.set(key, image);
       this.repaint(page);
     });
+  }
+
+  /** Back online: download the images that could not be fetched before. */
+  retryImages() {
+    let changed = false;
+    for (const [key, image] of this.images) {
+      if (image.placeholder) {
+        this.images.delete(key);
+        changed = true;
+      }
+    }
+    if (!changed) return;
+    for (const entry of this.textures.values()) entry.stale = true;
+    this.layout();
   }
 
   private repaint(page: number) {
@@ -816,7 +838,7 @@ export class BinderScene {
     this.hiddenSlot = card.slot;
     this.repaint(pageOfSlot(card.slot));
     this.updateGlows();
-    const image = this.images.get(card.id) ?? (await cardImage(card.card, "thumb"));
+    const image = this.images.get(imageKey(card)) ?? (await cardImage(card.card, "thumb", card.artworkId));
     if (this.dragging !== card) return;
     const canvas = document.createElement("canvas");
     canvas.width = 236;

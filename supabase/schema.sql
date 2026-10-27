@@ -21,6 +21,7 @@ create table if not exists public.binder_cards (
   slot integer not null check (slot >= 0),
   card jsonb not null,
   printing jsonb,
+  artwork_id text,
   condition text not null,
   language text not null,
   edition text not null,
@@ -29,6 +30,9 @@ create table if not exists public.binder_cards (
   deleted boolean not null default false,
   server_updated_at timestamptz not null default now()
 );
+
+-- For projects created with an earlier version of this file.
+alter table public.binder_cards add column if not exists artwork_id text;
 
 create index if not exists binders_user_sync on public.binders (user_id, server_updated_at);
 create index if not exists binder_cards_user_sync on public.binder_cards (user_id, server_updated_at);
@@ -72,3 +76,10 @@ create policy "own covers write" on storage.objects for insert
 drop policy if exists "own covers update" on storage.objects;
 create policy "own covers update" on storage.objects for update
   using (bucket_id = 'covers' and (storage.foldername(name))[1] = auth.uid()::text);
+
+-- Public bucket with the card images of the cards in your binders, copied once
+-- from YGOPRODeck by the card-image function (supabase/functions/card-image).
+-- Only that function writes here (with the service key); anyone can read.
+insert into storage.buckets (id, name, public)
+values ('card-images', 'card-images', true)
+on conflict (id) do nothing;

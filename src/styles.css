@@ -638,28 +638,12 @@ input[type="file"] {
 .frame-skill.swatch { background: #8d8678; }
 
 .add-card {
-  display: grid;
-  grid-template-columns: 110px 1fr;
-  gap: 14px;
-  align-items: start;
   margin: 8px 0 4px;
 }
 
 .add-card .card-name {
   margin-top: 0;
   font-size: 22px;
-}
-
-.add-preview {
-  aspect-ratio: 59 / 86;
-  background: #2c2620;
-  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.5);
-}
-
-.add-preview canvas {
-  display: block;
-  width: 100%;
-  height: 100%;
 }
 
 .back {

@@ -28,6 +28,13 @@ export interface Binder {
   dirty: boolean;
 }
 
+/** One illustration of a card, as published by YGOPRODeck (some cards have several). */
+export interface Artwork {
+  id: string; // YGOPRODeck image id
+  url: string; // full size
+  smallUrl: string; // small size, used in the pockets
+}
+
 /** Catalog card as stored on a binder copy (subset of Cardmática's CardDetail). */
 export interface CardSnapshot {
   catalogId: string; // Cardmática card UUID (or demo id)
@@ -46,6 +53,8 @@ export interface CardSnapshot {
   pendulumText: string | null;
   imageUrl: string | null;
   thumbnailUrl: string | null;
+  /** All illustrations of the card; the copy picks one with `artworkId`. */
+  artworks?: Artwork[];
 }
 
 export interface PrintingRef {
@@ -65,6 +74,8 @@ export interface BinderCard {
   slot: number;
   card: CardSnapshot;
   printing: PrintingRef | null;
+  /** Chosen illustration (Artwork.id); null = the card's main one. */
+  artworkId?: string | null;
   condition: Condition;
   language: string;
   edition: Edition;

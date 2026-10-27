@@ -9,7 +9,8 @@ El catálogo de cartas (datos e imágenes) se lee de **Cardmática** en modo sol
 - **Modelo 3D**: mesa de madera, tapas, anillas, hojas de plástico con 9 bolsillos y las cartas dentro. Paso de página con curva simple, apertura y cierre de la tapa.
 - **Binders**: Normal, Effect, Ritual, Fusion, Synchro, Xyz, Link, Pendulum (todos los péndulos juntos), Spells, Traps y dos personales. Al agregar una carta a un binder de tipo, va sola al binder que le corresponde; en los personales va donde elijas.
 - **Páginas infinitas**: siempre queda una página vacía al final.
-- **Cada copia** guarda set y rareza (de las impresiones de Cardmática, o a mano), estado, idioma, edición (1st / Unlimited / Limited) y notas. El bolsillo muestra la imagen general de la carta con una etiqueta de rareza.
+- **Cada copia** guarda set y rareza (de las impresiones de Cardmática, o a mano), artwork (si la carta tiene varios), estado, idioma, edición (1st / Unlimited / Limited) y notas. El bolsillo muestra la imagen de ese artwork con una etiqueta de rareza.
+- **Imágenes**: al agregar una carta solo se ve su nombre; la imagen se descarga de YGOPRODeck cuando la carta ya está en el binder, una sola vez, y queda guardada en el dispositivo. Solo se descargan las cartas que agregás.
 - **Mover cartas**: arrastrar con el mouse, o mantener pulsado en pantallas táctiles. Mantener la carta en el borde de la página la da vuelta.
 - **Tapas**: color hex o una imagen (JPG, PNG, WebP, GIF).
 - **Sin conexión**: binders, cartas e imágenes se guardan en el dispositivo (IndexedDB). Solo hace falta conexión para buscar y agregar cartas.
@@ -21,6 +22,36 @@ Teclado: ← → pasan página, Inicio / Fin van a la primera / última, Esc des
 
 - **Web**: se publica en GitHub Pages en cada push a `main` (https://santapepsi.github.io/binder/).
 - **Android**: cada push a `main` compila un APK y lo sube al release [`android-latest`](https://github.com/santapepsi/binder/releases/tag/android-latest). Se instala directo en el teléfono (permitir instalar desde esa fuente). Las actualizaciones se instalan encima sin perder los datos, porque todas se firman con la misma clave de depuración (`android-config/debug.keystore`; para distribuir la app a otras personas habría que crear una clave propia).
+
+## Catálogo completo (las ~14.000 cartas)
+
+Los textos y datos de todas las cartas los mantiene Cardmática. Para cargarlas todas, en el entorno de Cardmática (con `YGOPRODECK_ENABLED=true`):
+
+```bash
+cardmatica sync ygoprodeck initial --max-cards 100000
+# con Docker:
+docker compose exec api cardmatica sync ygoprodeck initial --max-cards 100000
+```
+
+Si se interrumpe, `cardmatica resume UUID_DEL_TRABAJO --max-cards 100000`. Para sumar cartas nuevas más adelante: `cardmatica sync ygoprodeck incremental --max-cards 100000`. Cardmática guarda también los artworks alternativos de cada carta, y el binder los ofrece al agregarla.
+
+## Imágenes de las cartas
+
+YGOPRODeck no permite que un navegador descargue sus imágenes desde otra web (CORS), así que:
+
+- **Android**: el APK las descarga directo con HTTP nativo. No necesita nada más.
+- **Web**: hace falta la función `card-image` de Supabase, que copia cada imagen una sola vez al bucket público `card-images` de tu proyecto. Así además YGOPRODeck no recibe pedidos repetidos y los demás dispositivos leen la copia del bucket.
+
+Para instalar la función (después de ejecutar `supabase/schema.sql`, que crea el bucket):
+
+```bash
+npx supabase login
+npx supabase functions deploy card-image --no-verify-jwt --project-ref TU_PROJECT_REF
+```
+
+O desde el panel de Supabase: Edge Functions → Create function, nombre `card-image`, pegar `supabase/functions/card-image/index.ts` y desactivar "Verify JWT".
+
+Sin conexión o si una descarga falla, el bolsillo muestra una carta genérica dibujada y la descarga se reintenta al volver la conexión.
 
 ## Conectar con Cardmática
 
@@ -35,9 +66,8 @@ Del lado de Cardmática hacen falta dos ajustes en su `.env` (no requieren cambi
    `https://localhost` es el origen de la app Android y `http://localhost:5173` el del servidor de desarrollo.
 2. **Acceso desde el teléfono**: el `docker-compose.yml` de Cardmática publica la API solo en `127.0.0.1`. Para que el teléfono la alcance, la API tiene que escuchar en la red local (o estar desplegada en un servidor).
 
-Dos límites a tener en cuenta:
+Un límite a tener en cuenta:
 
-- **Imágenes**: Cardmática solo entrega imágenes con permiso comercial verificado, o en vista previa local cuando se le pide a `localhost` con `ALLOW_LOCAL_IMAGE_PREVIEW=true`. Desde otra dirección (el teléfono, GitHub Pages) responde 404 y el binder dibuja una carta genérica con el nombre, tipo y datos. Cuando Cardmática sirva una imagen, el binder la descarga y la guarda para verla sin conexión.
 - **Web en GitHub Pages + Cardmática por `http://`**: el navegador bloquea pedidos `http://` desde una página `https://`. Para la versión web hace falta Cardmática por `https://`, o usar el servidor de desarrollo local. La app Android sí permite `http://`.
 
 ## Cuenta (Supabase)
