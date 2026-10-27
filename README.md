@@ -44,7 +44,9 @@ YGOPRODeck no permite que un navegador descargue sus imágenes desde otra web (C
    ```
    O desde el panel: Edge Functions → Create function, nombre `card-image`, pegar `supabase/functions/card-image/index.ts` y desactivar "Verify JWT".
 4. Para uso personal, en Authentication se puede desactivar la confirmación por email.
-5. En la app: **Settings → Account & sync**, pegar la URL del proyecto y la clave pública (anon / publishable), y crear la cuenta o iniciar sesión.
+5. La app ya trae la URL y la clave pública del proyecto del binder (`src/data/settings.ts`): en **Settings → Account & sync** solo hay que crear la cuenta o iniciar sesión. Para usar otro proyecto, se cambian ahí o en ese archivo.
+
+Cualquiera que instale la app puede crear su propia cuenta en este proyecto; cada cuenta ve solo sus binders. Para que nadie más se registre: Authentication → Sign In / Providers → desactivar "Allow new users to sign up" (después de crear tu cuenta).
 
 Conflictos: gana el último cambio de cada carta; si dos dispositivos ponen cartas distintas en el mismo bolsillo, la más reciente pasa al primer bolsillo libre.
 
