@@ -3,12 +3,14 @@
 // a grid of cards. "Binders" lists every card in every binder and on the table.
 
 import { COPIES_PER_CARD, LIMITS, MAIN_MINIMUM, isExtraDeckCard, toYdk, type Deck, type DeckEntry, type DeckStore, type DeckZone } from "../data/decks.ts";
-import { cardImage } from "../data/images.ts";
+import { cardImage, type Drawable } from "../data/images.ts";
 import type { Store } from "../data/store.ts";
 import type { TableStore } from "../data/table.ts";
 import { frameOf, typeLine } from "../model/classify.ts";
 import type { CardSnapshot } from "../model/types.ts";
 import { deckboxIcon, h, icon, nodes, toast } from "./dom.ts";
+import type { Catalog } from "../data/catalog.ts";
+import { openDeckCardPicker } from "./deckCardPicker.ts";
 import { t, translateTypeLine } from "../i18n.ts";
 
 type Tab = DeckZone | "binders";
@@ -21,6 +23,7 @@ interface Owned {
 }
 
 const COLUMNS = 10;
+const THUMBS = new Map<string, Drawable>();
 const FRAME_ORDER = ["normal", "effect", "ritual", "fusion", "synchro", "xyz", "link", "token", "skill", "spell", "trap"];
 
 /** Every card the user owns: copies in all binders plus cards lying on the table. */
@@ -73,6 +76,7 @@ export class DeckView {
     private readonly store: Store,
     private readonly table: TableStore,
     private readonly decks: DeckStore,
+    private readonly catalog: Catalog,
     private readonly onClose: () => void
   ) {
     this.nameInput.addEventListener("change", () => this.deck && this.decks.rename(this.deck.id, this.nameInput.value));
@@ -211,10 +215,18 @@ export class DeckView {
         item.count !== undefined ? h("span", { class: "copies", text: `×${item.count}` }) : null,
         item.used ? h("span", { class: "in-deck", text: String(item.used) }) : null
       ) as HTMLButtonElement & { draw?: () => void };
+      const key = `${item.card.catalogId}|${item.artworkId ?? ""}`;
+      const paint = (image: Drawable) => canvas.getContext("2d")!.drawImage(image, 0, 0, canvas.width, canvas.height);
+      const cached = THUMBS.get(key);
+      // Already loaded cards are painted at once, so re-rendering the grid never blinks.
+      if (cached) paint(cached);
       cell.draw = () =>
-        cardImage(item.card, "thumb", item.artworkId).then((image) => canvas.getContext("2d")!.drawImage(image, 0, 0, canvas.width, canvas.height));
+        cardImage(item.card, "thumb", item.artworkId).then((image) => {
+          if (!("placeholder" in image && image.placeholder)) THUMBS.set(key, image);
+          paint(image);
+        });
       cell.dataset.position = String(position);
-      this.observer.observe(cell);
+      if (!cached) this.observer.observe(cell);
       return cell;
     });
     const minimumRows = 4;
@@ -266,6 +278,16 @@ export class DeckView {
     else this.removeSelected();
   }
 
+  /** Add cards from the whole database, like adding to a binder. */
+  private pickCard() {
+    const deck = this.deck;
+    if (!deck) return;
+    const side = this.tab === "side";
+    openDeckCardPicker(this.catalog, side ? "side" : "deck", (card) =>
+      this.decks.add(deck.id, { catalogId: card.catalogId, artworkId: null, card }, side ? "side" : "deck", Infinity)
+    );
+  }
+
   private exportYdk() {
     if (!this.deck) return;
     const url = URL.createObjectURL(new Blob([toYdk(this.deck)], { type: "text/plain" }));
@@ -308,6 +330,7 @@ export class DeckView {
 
     this.toolbar.replaceChildren(...nodes(
       button(t("◀ Binders"), () => this.onClose(), true, "back"),
+      button(t("+ Add card"), () => this.pickCard(), true, "add-card-button"),
       this.tab === "binders" ? search : null,
       this.tab === "binders" ? sort : null,
       h("span", { class: "spacer" }),

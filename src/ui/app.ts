@@ -133,7 +133,7 @@ export async function startApp(root: HTMLElement) {
     scene.select(null);
     detail.show(null, binder);
   });
-  const deckView = new DeckView(store, table, decks, () => showBinders());
+  const deckView = new DeckView(store, table, decks, catalog, () => showBinders());
   root.append(h("div", { class: "layout" }, header, detail.element, stage, deckView.element));
 
   function showDeck(deck: Deck) {

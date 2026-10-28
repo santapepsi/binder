@@ -163,6 +163,11 @@ const JA: Record<string, string> = {
   "Edit {name}": "{name}を編集",
   "New deck": "新しいデッキ",
   "Deck {n}": "デッキ {n}",
+  "+ Add card": "+ カードを追加",
+  "Add card to the deck": "デッキにカードを追加",
+  "Add card to the Side Deck": "サイドデッキにカードを追加",
+  "{name} added.": "{name}を追加しました。",
+  "Click a card to add a copy. Cards you do not own can be added too.": "カードをクリックすると1枚追加されます。持っていないカードも追加できます。",
 
   // ---- deck view
   "Deck name": "デッキ名",

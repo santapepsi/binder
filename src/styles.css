@@ -1164,32 +1164,46 @@ input[type="file"] {
 
 .deck-tabs {
   display: flex;
-  gap: 4px;
-  padding: 4px;
-  border-radius: 6px;
-  background: linear-gradient(#e2559f, #b92776);
+  align-items: flex-end;
+  gap: 3px;
+  padding: 6px 8px 0;
+  margin-bottom: -3px; /* the active tab sits on the board's top edge */
+  position: relative;
+  z-index: 1;
+  border-radius: 8px 8px 0 0;
+  background: linear-gradient(#e0509a, #b3226f);
   border: 2px solid #ffb3da;
+  border-bottom: 0;
 }
 
 .deck-tab {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 3px 4px 3px 10px;
-  border: 0;
-  border-radius: 4px;
-  background: transparent;
-  color: #2b0a1c;
+  padding: 4px 6px 4px 12px;
+  border: 2px solid #8a1a56;
+  border-bottom: 0;
+  border-radius: 9px 9px 0 0;
+  background: linear-gradient(#a8266f, #7d1450);
+  color: #ffd6ec;
   font-size: 18px;
   font-weight: 900;
-}
-
-.deck-tab.active {
-  background: rgba(255, 255, 255, 0.55);
+  cursor: pointer;
+  position: relative;
+  top: 0;
 }
 
 .deck-tab:hover {
-  background: rgba(255, 255, 255, 0.3);
+  background: linear-gradient(#c02f84, #92195d);
+}
+
+.deck-tab.active {
+  padding-top: 7px;
+  margin-bottom: 0;
+  border-color: #ffd0e8;
+  background: linear-gradient(#ffdff0, #f7a9d2);
+  color: #4a0b2e;
+  z-index: 2;
 }
 
 .tab-count {
@@ -1210,8 +1224,8 @@ input[type="file"] {
   gap: 4px;
   padding: 6px;
   overflow-y: auto;
-  border: 3px solid #b8a98a;
-  border-radius: 4px;
+  border: 3px solid #f7a9d2;
+  border-radius: 0 0 4px 4px;
   background: repeating-linear-gradient(0deg, rgba(150, 130, 80, 0.12) 0 1px, transparent 1px 22px), #f3ecd2;
 }
 

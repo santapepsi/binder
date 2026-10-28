@@ -18,7 +18,8 @@ interface SpotMeshes {
 }
 
 const CARD_T = 0.035; // card thickness, cm
-const LAYER = 0.06; // height between stacked cards
+const LAYER = 0.05; // height between stacked cards
+const REACH = 10.6; // two cards closer than this can overlap
 const FACE = 2; // +y face of the card box
 const UNDERSIDE = 3; // -y face
 
@@ -78,15 +79,26 @@ export class TableLayer {
 
   /** Position of a spot in the stack (0 = bottom), from its order. */
   private layerOf(id: string) {
-    return this.stack.indexOf(id);
+    return this.layers.get(id) ?? 0;
   }
 
   private stack: string[] = [];
+  private layers = new Map<string, number>();
 
   setSlots(slots: TableSlot[]) {
     this.slots = slots;
     // Distinct heights per card so overlapping cards never fight for the same depth.
-    this.stack = [...slots].sort((a, b) => (a.order ?? 0) - (b.order ?? 0)).map((slot) => slot.id);
+    const sorted = [...slots].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+    this.stack = sorted.map((slot) => slot.id);
+    // Only cards that can overlap are stacked, so loose cards stay flat on the table
+    // (and never rise above the binder's cover).
+    this.layers.clear();
+    sorted.forEach((slot, index) => {
+      let layer = 0;
+      for (const below of sorted.slice(0, index))
+        if (Math.hypot(below.x - slot.x, below.z - slot.z) < REACH) layer = Math.max(layer, this.layerOf(below.id) + 1);
+      this.layers.set(slot.id, layer);
+    });
     const alive = new Set(slots.map((slot) => slot.id));
     for (const [id, spot] of this.spots) {
       if (!alive.has(id)) {
@@ -198,7 +210,7 @@ export class TableLayer {
   preview(id: string, x: number, z: number, lift: number) {
     const spot = this.spots.get(id);
     if (!spot) return;
-    spot.group.position.set(x, TABLE_Y + Math.max(lift, (this.stack.length + 1) * LAYER), z);
+    spot.group.position.set(x, TABLE_Y + Math.max(lift, ([...this.layers.values()].reduce((a, b) => Math.max(a, b), 0) + 1) * LAYER), z);
     this.onChange();
   }
 }
