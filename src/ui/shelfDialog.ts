@@ -1,4 +1,4 @@
-// Binder shelf: pick a binder, and edit its name and cover (hex colour or picture).
+// Binder editor: name and cover (hex colour or picture).
 
 import { BINDER_COLORS } from "../model/classify.ts";
 import { coverImage, deleteCover, saveCover } from "../data/images.ts";
@@ -6,62 +6,18 @@ import type { Store } from "../data/store.ts";
 import type { Binder } from "../model/types.ts";
 import { markLocalCover } from "../sync/sync.ts";
 import { dialogShell, field, h, icon, openDialog, toast } from "./dom.ts";
-
-export function openShelf(store: Store, currentId: string, onPick: (binder: Binder) => void) {
-  const list = h("ul", { class: "shelf" });
-  const dialog = dialogShell("Binders", list);
-  const render = () => {
-    list.replaceChildren(
-      ...store.liveBinders().map((binder) => {
-        const count = store.cardsOf(binder.id).length;
-        const spine = h("span", { class: "shelf-cover", style: `--cover:${binder.coverColor}` });
-        if (binder.coverImage)
-          coverImage(binder.id).then((bitmap) => {
-            if (!bitmap) return;
-            const canvas = h("canvas", { width: 80, height: 100 });
-            const context = canvas.getContext("2d")!;
-            const scale = Math.max(80 / bitmap.width, 100 / bitmap.height);
-            context.drawImage(bitmap, (80 - bitmap.width * scale) / 2, (100 - bitmap.height * scale) / 2, bitmap.width * scale, bitmap.height * scale);
-            spine.append(canvas);
-          });
-        return h(
-          "li",
-          { class: binder.id === currentId ? "current" : "" },
-          h(
-            "button",
-            {
-              class: "shelf-pick",
-              onclick: () => {
-                dialog.close();
-                onPick(binder);
-              },
-            },
-            spine,
-            h("span", { class: "shelf-name", text: binder.name }),
-            h("span", { class: "shelf-count", text: `${count} card${count === 1 ? "" : "s"}` })
-          ),
-          h(
-            "button",
-            { class: "icon-button", "aria-label": `Edit ${binder.name}`, onclick: () => openBinderEditor(store, binder, render) },
-            icon("edit")
-          )
-        );
-      })
-    );
-  };
-  render();
-  openDialog(dialog);
-}
+import { binderName, t } from "../i18n.ts";
 
 export function openBinderEditor(store: Store, binder: Binder, onSaved?: () => void) {
-  const name = h("input", { type: "text", value: binder.name, maxlength: 40 });
+  const shownName = binderName(binder);
+  const name = h("input", { type: "text", value: shownName, maxlength: 40 });
   const showName = h("input", { type: "checkbox", checked: binder.showName !== false });
-  const picker = h("input", { type: "color", value: binder.coverColor, "aria-label": "Cover colour" });
+  const picker = h("input", { type: "color", value: binder.coverColor, "aria-label": t("Cover colour") });
   const hex = h("input", { type: "text", value: binder.coverColor, maxlength: 7, pattern: "#[0-9a-fA-F]{6}", spellcheck: false, class: "hex" });
   const file = h("input", { type: "file", accept: "image/png,image/jpeg,image/webp,image/gif" });
   const preview = h("div", { class: "cover-preview", style: `--cover:${binder.coverColor}` });
   let picture: Blob | null | undefined; // undefined = unchanged, null = removed
-  const removePicture = h("button", { class: "button ghost", type: "button" }, icon("trash", "Remove picture"));
+  const removePicture = h("button", { class: "button ghost", type: "button" }, icon("trash", t("Remove picture")));
   removePicture.hidden = !binder.coverImage;
 
   const showPicture = async (blob: Blob | null) => {
@@ -99,9 +55,9 @@ export function openBinderEditor(store: Store, binder: Binder, onSaved?: () => v
     showPicture(null);
   });
 
-  const save = h("button", { class: "button primary", type: "button", text: "Save" });
+  const save = h("button", { class: "button primary", type: "button", text: t("Save") });
   const dialog = dialogShell(
-    "Edit binder",
+    t("Edit binder"),
     h(
       "div",
       { class: "editor" },
@@ -109,17 +65,17 @@ export function openBinderEditor(store: Store, binder: Binder, onSaved?: () => v
       h(
         "div",
         { class: "editor-fields" },
-        field("Name", name),
-        h("label", { class: "check" }, showName, h("span", { text: "Show the name on the cover" })),
-        field("Cover colour", h("div", { class: "color-row" }, picker, hex)),
+        field(t("Name"), name),
+        h("label", { class: "check" }, showName, h("span", { text: t("Show the name on the cover") })),
+        field(t("Cover colour"), h("div", { class: "color-row" }, picker, hex)),
         h(
           "div",
-          { class: "swatches", role: "group", "aria-label": "Binder colours" },
+          { class: "swatches", role: "group", "aria-label": t("Binder colours") },
           ...Object.entries(BINDER_COLORS).map(([label, value]) =>
-            h("button", { type: "button", class: "swatch-button", title: label, "aria-label": label, style: `--swatch:${value}`, onclick: () => setColor(value) })
+            h("button", { type: "button", class: "swatch-button", title: t(label), "aria-label": t(label), style: `--swatch:${value}`, onclick: () => setColor(value) })
           )
         ),
-        field("Cover picture", file, "JPG, PNG, WebP or GIF. It covers the whole front."),
+        field(t("Cover picture"), file, t("JPG, PNG, WebP or GIF. It covers the whole front.")),
         removePicture
       )
     ),
@@ -127,7 +83,8 @@ export function openBinderEditor(store: Store, binder: Binder, onSaved?: () => v
   );
   save.addEventListener("click", async () => {
     const patch: Partial<Pick<Binder, "name" | "coverColor" | "coverImage" | "showName">> = {
-      name: name.value.trim() || binder.name,
+      // A translated default name left as it is keeps the stored (English) name.
+      name: name.value.trim() === shownName ? binder.name : name.value.trim() || binder.name,
       showName: showName.checked,
       coverColor: /^#[0-9a-f]{6}$/i.test(hex.value) ? hex.value.toLowerCase() : binder.coverColor,
     };
@@ -143,7 +100,7 @@ export function openBinderEditor(store: Store, binder: Binder, onSaved?: () => v
       dialog.close();
       onSaved?.();
     } catch (error) {
-      toast(`Could not save the cover: ${(error as Error).message}`);
+      toast(t("Could not save the cover: {error}", { error: (error as Error).message }));
     }
   });
   openDialog(dialog);

@@ -5,6 +5,7 @@ import { frameOf } from "../model/classify.ts";
 import type { CardSnapshot } from "../model/types.ts";
 import * as db from "./db.ts";
 import { uuid } from "./store.ts";
+import { plural, t } from "../i18n.ts";
 
 export type DeckZone = "main" | "extra" | "side";
 
@@ -105,12 +106,13 @@ export class DeckStore extends EventTarget {
    */
   async add(id: string, entry: DeckEntry, target: "deck" | "side", owned: number): Promise<string | null> {
     const deck = this.get(id);
-    if (!deck) return "Deck not found.";
+    if (!deck) return t("Deck not found.");
     const zone: DeckZone = target === "side" ? "side" : isExtraDeckCard(entry.card) ? "extra" : "main";
     const copies = this.copiesIn(deck, entry.catalogId);
-    if (copies >= COPIES_PER_CARD) return `A deck can hold at most ${COPIES_PER_CARD} copies of a card.`;
-    if (copies >= owned) return `You own ${owned} ${owned === 1 ? "copy" : "copies"} of this card.`;
-    if (deck[zone].length >= LIMITS[zone]) return `The ${zone === "main" ? "Main" : zone === "extra" ? "Extra" : "Side"} Deck is full (${LIMITS[zone]}).`;
+    if (copies >= COPIES_PER_CARD) return t("A deck can hold at most {n} copies of a card.", { n: COPIES_PER_CARD });
+    if (copies >= owned) return plural(owned, "You own {n} copy of this card.", "You own {n} copies of this card.");
+    if (deck[zone].length >= LIMITS[zone])
+      return t(zone === "main" ? "The Main Deck is full ({n})." : zone === "extra" ? "The Extra Deck is full ({n})." : "The Side Deck is full ({n}).", { n: LIMITS[zone] });
     deck[zone].push({ ...entry });
     await this.changed(deck);
     return null;

@@ -8,7 +8,8 @@ import type { Store } from "../data/store.ts";
 import type { TableStore } from "../data/table.ts";
 import { frameOf, typeLine } from "../model/classify.ts";
 import type { CardSnapshot } from "../model/types.ts";
-import { h, icon, nodes, toast } from "./dom.ts";
+import { deckboxIcon, h, icon, nodes, toast } from "./dom.ts";
+import { t, translateTypeLine } from "../i18n.ts";
 
 type Tab = DeckZone | "binders";
 
@@ -54,7 +55,7 @@ export class DeckView {
   private readonly detail = h("aside", { class: "deck-detail" });
   private readonly grid = h("div", { class: "deck-grid", role: "grid" });
   private readonly rows = h("div", { class: "deck-rows", "aria-hidden": "true" });
-  private readonly nameInput = h("input", { class: "deck-name", type: "text", maxlength: 40, "aria-label": "Deck name" });
+  private readonly nameInput = h("input", { class: "deck-name", type: "text", maxlength: 40, "aria-label": t("Deck name") });
   private readonly ownedCount = h("span", { class: "owned-number" });
   private readonly tabs = h("div", { class: "deck-tabs", role: "tablist" });
   private readonly toolbar = h("div", { class: "deck-toolbar" });
@@ -84,7 +85,7 @@ export class DeckView {
           "div",
           { class: "deck-top" },
           this.nameInput,
-          h("div", { class: "owned" }, h("span", { class: "owned-label", text: "Card types owned" }), this.ownedCount)
+          h("div", { class: "owned" }, h("span", { class: "owned-label", text: t("Card types owned") }), this.ownedCount)
         ),
         this.tabs,
         h("div", { class: "deck-board" }, this.rows, this.grid),
@@ -156,10 +157,10 @@ export class DeckView {
         h("span", { class: "tab-count", text: count.toLocaleString() })
       );
     this.tabs.replaceChildren(
-      tab("main", "Deck", deck.main.length),
-      tab("extra", "Extra", deck.extra.length),
-      tab("side", "Side", deck.side.length),
-      tab("binders", "Binders", total)
+      tab("main", t("Deck"), deck.main.length),
+      tab("extra", t("Extra"), deck.extra.length),
+      tab("side", t("Side"), deck.side.length),
+      tab("binders", t("Binders"), total)
     );
   }
 
@@ -280,14 +281,14 @@ export class DeckView {
     const item = this.selectedItem();
     const button = (label: string, action: () => void, enabled = true, kind = "") =>
       h("button", { class: `deck-action ${kind}`, disabled: !enabled, onclick: action, text: label });
-    const search = h("input", { type: "search", class: "deck-search", placeholder: "Search your cards…", value: this.query, "aria-label": "Search your cards" });
+    const search = h("input", { type: "search", class: "deck-search", placeholder: t("Search your cards…"), value: this.query, "aria-label": t("Search your cards") });
     search.addEventListener("input", () => {
       this.query = search.value;
       this.renderGrid();
     });
-    const sort = h("select", { class: "deck-sort", "aria-label": "Sort" });
+    const sort = h("select", { class: "deck-sort", "aria-label": t("Sort") });
     for (const [value, label] of [["type", "Sort: type"], ["name", "Sort: name"], ["atk", "Sort: ATK"]] as const)
-      sort.append(h("option", { value, text: label, selected: this.sort === value }));
+      sort.append(h("option", { value, text: t(label), selected: this.sort === value }));
     sort.addEventListener("change", () => {
       this.sort = sort.value as typeof this.sort;
       this.renderGrid();
@@ -299,14 +300,14 @@ export class DeckView {
     };
     const main = counts(deck.main);
     const problems = [
-      deck.main.length < MAIN_MINIMUM ? `Main Deck needs ${MAIN_MINIMUM - deck.main.length} more` : null,
-      deck.extra.length > LIMITS.extra ? "Extra Deck over 15" : null,
+      deck.main.length < MAIN_MINIMUM ? t("Main Deck needs {n} more", { n: MAIN_MINIMUM - deck.main.length }) : null,
+      deck.extra.length > LIMITS.extra ? t("Extra Deck over 15") : null,
     ].filter(Boolean);
     this.status.className = `deck-status${problems.length ? " invalid" : " valid"}`;
-    this.status.textContent = `Monsters ${main.M} · Spells ${main.S} · Traps ${main.T} — ${problems.length ? problems.join(", ") : "Legal size"}`;
+    this.status.textContent = t("Monsters {m} · Spells {s} · Traps {t} — {state}", { m: main.M, s: main.S, t: main.T, state: problems.length ? problems.join(", ") : t("Legal size") });
 
     this.toolbar.replaceChildren(...nodes(
-      button("◀ Binders", () => this.onClose(), true, "back"),
+      button(t("◀ Binders"), () => this.onClose(), true, "back"),
       this.tab === "binders" ? search : null,
       this.tab === "binders" ? sort : null,
       h("span", { class: "spacer" }),
@@ -314,20 +315,20 @@ export class DeckView {
         ? h(
             "span",
             { class: "deck-actions" },
-            button("+ Deck", () => this.addSelected("deck"), !!item),
-            button("+ Side", () => this.addSelected("side"), !!item)
+            button(t("+ Deck"), () => this.addSelected("deck"), !!item),
+            button(t("+ Side"), () => this.addSelected("side"), !!item)
           )
-        : button("Remove", () => this.removeSelected(), !!item),
+        : button(t("Remove"), () => this.removeSelected(), !!item),
       this.status,
-      button("Export .ydk", () => this.exportYdk(), deck.main.length + deck.extra.length + deck.side.length > 0, "ghost"),
+      button(t("Export .ydk"), () => this.exportYdk(), deck.main.length + deck.extra.length + deck.side.length > 0, "ghost"),
       h(
         "button",
         {
           class: "deck-action danger",
-          "aria-label": "Delete deck",
-          title: "Delete deck",
+          "aria-label": t("Delete deck"),
+          title: t("Delete deck"),
           onclick: async () => {
-            if (confirm(`Delete the deck "${deck.name}"?`)) await this.decks.remove(deck.id);
+            if (confirm(t('Delete the deck "{name}"?', { name: deck.name }))) await this.decks.remove(deck.id);
           },
         },
         icon("trash")
@@ -342,14 +343,14 @@ export class DeckView {
     if (!item) {
       const deck = this.deck!;
       this.detail.replaceChildren(
-        h("div", { class: "deck-detail-art empty" }, h("span", { class: "deckbox-icon large" })),
+        h("div", { class: "deck-detail-art empty" }, deckboxIcon(true)),
         h("h2", { class: "card-name", text: deck.name }),
         h(
           "p",
           { class: "card-text" },
           this.tab === "binders"
-            ? "Pick a card and press + Deck (or double-click it) to put it in the deck. Fusion, Synchro, Xyz and Link monsters go to the Extra Deck."
-            : "Pick a card to see it here. Double-click it or press Remove to take it out of the deck."
+            ? t("Pick a card and press + Deck (or double-click it) to put it in the deck. Fusion, Synchro, Xyz and Link monsters go to the Extra Deck.")
+            : t("Pick a card to see it here. Double-click it or press Remove to take it out of the deck.")
         )
       );
       return;
@@ -374,10 +375,10 @@ export class DeckView {
         h("span", { class: "owned-copies", text: `×${owned}` })
       ),
       h("h2", { class: "card-name", text: info.name }),
-      h("div", { class: `type-tag frame-${frameOf(info)}`, text: `[${typeLine(info)}]` }),
-      h("p", { class: "muted", text: `In this deck: ${inDeck} · owned: ${owned}${isExtraDeckCard(info) ? " · Extra Deck card" : ""}` }),
+      h("div", { class: `type-tag frame-${frameOf(info)}`, text: `[${translateTypeLine(typeLine(info))}]` }),
+      h("p", { class: "muted", text: t("In this deck: {n} · owned: {owned}", { n: inDeck, owned }) + (isExtraDeckCard(info) ? t(" · Extra Deck card") : "") }),
       info.pendulumText ? h("p", { class: "card-text pendulum", text: info.pendulumText }) : null,
-      h("p", { class: "card-text", text: info.text || "No card text." })
+      h("p", { class: "card-text", text: info.text || t("No card text.") })
     ));
   }
 

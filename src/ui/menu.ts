@@ -4,8 +4,9 @@ import type { Deck, DeckStore } from "../data/decks.ts";
 import { coverImage } from "../data/images.ts";
 import type { Store } from "../data/store.ts";
 import type { Binder } from "../model/types.ts";
-import { h, icon, nodes } from "./dom.ts";
+import { deckboxIcon, h, icon, nodes } from "./dom.ts";
 import { openBinderEditor } from "./shelfDialog.ts";
+import { binderName, plural, t } from "../i18n.ts";
 
 export interface MenuOptions {
   anchor: HTMLElement;
@@ -76,14 +77,14 @@ export function toggleMenu(options: MenuOptions) {
               },
             },
             spine,
-            h("span", { class: "shelf-name", text: binder.name }),
-            h("span", { class: "shelf-count", text: `${count} card${count === 1 ? "" : "s"}` })
+            h("span", { class: "shelf-name", text: binderName(binder) }),
+            h("span", { class: "shelf-count", text: plural(count, "{n} card", "{n} cards") })
           ),
           h(
             "button",
             {
               class: "icon-button",
-              "aria-label": `Edit ${binder.name}`,
+              "aria-label": t("Edit {name}", { name: binderName(binder) }),
               onclick: () => {
                 closeMenu();
                 openBinderEditor(store, binder);
@@ -113,7 +114,7 @@ export function toggleMenu(options: MenuOptions) {
                 options.onDeck(deck);
               },
             },
-            h("span", { class: "deckbox-icon" }),
+            deckboxIcon(),
             h("span", { class: "shelf-name", text: deck.name }),
             h("span", { class: "shelf-count", text: `${deck.main.length} · ${deck.extra.length} · ${deck.side.length}` })
           )
@@ -129,20 +130,20 @@ export function toggleMenu(options: MenuOptions) {
             role: "menuitem",
             onclick: async () => {
               closeMenu();
-              options.onDeck(await decks.create(`Deck ${decks.live().length + 1}`));
+              options.onDeck(await decks.create(t("Deck {n}", { n: decks.live().length + 1 })));
             },
           },
           icon("plus"),
-          h("span", { class: "shelf-name", text: "New deck" })
+          h("span", { class: "shelf-name", text: t("New deck") })
         )
       )
     );
 
   const render = () => {
     menu.replaceChildren(...nodes(
-      sectionButton("binders", "Binders", store.liveBinders().length),
+      sectionButton("binders", t("Binders"), store.liveBinders().length),
       section === "binders" ? binderList() : null,
-      sectionButton("deckboxes", "Deckboxes", decks.live().length),
+      sectionButton("deckboxes", t("Deckboxes"), decks.live().length),
       section === "deckboxes" ? deckList() : null
     ));
   };

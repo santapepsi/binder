@@ -20,6 +20,7 @@ import { openBinderEditor } from "./shelfDialog.ts";
 import { DeckStore, type Deck } from "../data/decks.ts";
 import { DeckView } from "./deckView.ts";
 import { closeMenu, toggleMenu } from "./menu.ts";
+import { binderName, plural, t } from "../i18n.ts";
 
 const portrait = () => window.innerWidth < 760 || window.innerWidth / window.innerHeight < 0.9;
 
@@ -50,7 +51,7 @@ export async function startApp(root: HTMLElement) {
 
   // ---- layout
   let mode: "binder" | "deck" = "binder";
-  const menuButton = h("button", { class: "icon-button menu-button", "aria-label": "Binders and deckboxes", "aria-haspopup": "menu" }, icon("shelf"));
+  const menuButton = h("button", { class: "icon-button menu-button", "aria-label": t("Binders and deckboxes"), "aria-haspopup": "menu" }, icon("shelf"));
   const openNavigation = () =>
     toggleMenu({
       anchor: menuButton,
@@ -67,7 +68,7 @@ export async function startApp(root: HTMLElement) {
   menuButton.addEventListener("click", openNavigation);
   const title = h("button", { class: "title-button", onclick: openNavigation });
   const summary = h("span", { class: "summary" });
-  const syncDot = h("button", { class: "icon-button sync-dot", "aria-label": "Sync status", onclick: () => settingsDialog() }, icon("cloud"));
+  const syncDot = h("button", { class: "icon-button sync-dot", "aria-label": t("Sync status"), onclick: () => settingsDialog() }, icon("cloud"));
   const header = h(
     "header",
     { class: "topbar panel" },
@@ -75,18 +76,18 @@ export async function startApp(root: HTMLElement) {
     title,
     summary,
     h("span", { class: "spacer" }),
-    h("button", { class: "button primary add", onclick: () => addCard() }, icon("plus", "Add card")),
-    h("button", { class: "icon-button", "aria-label": "Edit binder", onclick: () => openBinderEditor(store, binder) }, icon("edit")),
+    h("button", { class: "button primary add", onclick: () => addCard() }, icon("plus", t("Add card"))),
+    h("button", { class: "icon-button", "aria-label": t("Edit binder"), onclick: () => openBinderEditor(store, binder) }, icon("edit")),
     h(
       "button",
       {
         class: "icon-button",
-        "aria-label": "Show or hide all rarity stickers",
-        title: "Show or hide all rarity stickers",
+        "aria-label": t("Show or hide all rarity stickers"),
+        title: t("Show or hide all rarity stickers"),
         onclick: async () => {
           const show = !store.anyBadgeVisible();
           await store.setAllBadges(show);
-          toast(show ? "Rarity stickers shown on every card." : "Rarity stickers hidden on every card.");
+          toast(show ? t("Rarity stickers shown on every card.") : t("Rarity stickers hidden on every card."));
         },
       },
       icon("sticker")
@@ -95,8 +96,8 @@ export async function startApp(root: HTMLElement) {
       "button",
       {
         class: "icon-button",
-        "aria-label": "Add a card spot to the table",
-        title: "Add a card spot to the table",
+        "aria-label": t("Add a card spot to the table"),
+        title: t("Add a card spot to the table"),
         onclick: async () => {
           const spot = await table.add();
           if (scene.state.focus) scene.setFocus(null);
@@ -106,18 +107,18 @@ export async function startApp(root: HTMLElement) {
       icon("spot")
     ),
     syncDot,
-    h("button", { class: "icon-button", "aria-label": "Settings", onclick: () => settingsDialog() }, icon("gear"))
+    h("button", { class: "icon-button", "aria-label": t("Settings"), onclick: () => settingsDialog() }, icon("gear"))
   );
 
   const stage = h("main", { class: "stage" });
   const pageLabel = h("span", { class: "page-label", "aria-live": "polite" });
   const navButton = (name: Parameters<typeof icon>[0], label: string, action: () => void) =>
-    h("button", { class: "nav-button", "aria-label": label, title: label, onclick: action }, icon(name));
+    h("button", { class: "nav-button", "aria-label": t(label), title: t(label), onclick: action }, icon(name));
   const leftFocus = navButton("leftPage", "Left page", () => toggleFocus("left"));
   const rightFocus = navButton("rightPage", "Right page", () => toggleFocus("right"));
   const pager = h(
     "nav",
-    { class: "pager", "aria-label": "Pages" },
+    { class: "pager", "aria-label": t("Pages") },
     leftFocus,
     navButton("first", "First page", () => scene.first()),
     navButton("prev", "Previous page", () => scene.previous()),
@@ -166,31 +167,31 @@ export async function startApp(root: HTMLElement) {
     tableSlot: (id) => openSpotMenu(table, catalog, id, highlightSpot),
     tableMove: (id, x, z) => table.update(id, { x, z }),
   });
-  scene.renderer.domElement.setAttribute("aria-label", "3D binder. Use the arrow keys to turn pages.");
+  scene.renderer.domElement.setAttribute("aria-label", t("3D binder. Use the arrow keys to turn pages."));
   if (portrait()) scene.setFocus("right");
 
   const refreshHeader = () => {
     const deck = mode === "deck" ? deckView.current : null;
     if (deck) {
       title.replaceChildren(h("span", { text: deck.name }), h("span", { class: "caret", text: "▾" }));
-      summary.textContent = `Deck ${deck.main.length} · Extra ${deck.extra.length} · Side ${deck.side.length}`;
+      summary.textContent = t("Deck {main} · Extra {extra} · Side {side}", { main: deck.main.length, extra: deck.extra.length, side: deck.side.length });
       return;
     }
-    title.replaceChildren(h("span", { text: binder.name }), h("span", { class: "caret", text: "▾" }));
+    title.replaceChildren(h("span", { text: binderName(binder) }), h("span", { class: "caret", text: "▾" }));
     const cards = store.cardsOf(binder.id).length;
-    summary.textContent = `${cards} card${cards === 1 ? "" : "s"}`;
+    summary.textContent = plural(cards, "{n} card", "{n} cards");
   };
 
   function updatePager(state: ViewState) {
     const number = (page: number | null) => (page !== null && page >= 0 ? page + 1 : null);
     let text: string;
-    if (state.spread < 0) text = "Cover";
+    if (state.spread < 0) text = t("Cover");
     else {
       const { left, right } = pagesOfSpread(state.spread, state.pages);
       const shown =
         state.focus === "left" ? [number(left)] : state.focus === "right" ? [number(right)] : [number(left), number(right)];
       const pages = shown.filter((value) => value !== null);
-      text = pages.length ? `${pages.join("–")} / ${state.pages}` : state.focus === "left" ? "Inside cover" : `End / ${state.pages}`;
+      text = pages.length ? `${pages.join("–")} / ${state.pages}` : state.focus === "left" ? t("Inside cover") : t("End / {pages}", { pages: state.pages });
     }
     pageLabel.textContent = text;
     leftFocus.classList.toggle("active", state.focus === "left");
@@ -225,8 +226,8 @@ export async function startApp(root: HTMLElement) {
           scene.select(card.slot);
           detail.show(card, binder);
         } else {
-          toast(`${card.card.name} went to ${target.name}.`, {
-            label: "Open",
+          toast(t("{name} went to {binder}.", { name: card.card.name, binder: binderName(target) }), {
+            label: t("Open"),
             run: async () => {
               await switchBinder(target);
               scene.showSlot(card.slot);

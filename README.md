@@ -14,6 +14,7 @@ Binder 3D para la colección de Yu-Gi-Oh!, en web y Android (APK). Páginas de 9
 - **Sin conexión**: binders, cartas, base de cartas e imágenes quedan guardados en el dispositivo.
 - **Cuenta y sincronización** (opcional) con Supabase.
 - **Deckboxes**: desde el menú de arriba a la izquierda (Binders / Deckboxes) se crean mazos. El editor imita la pantalla de mazos de Tag Force: pestañas Deck, Extra, Side y Binders (todas las cartas de todos los binders y de la mesa). Máximo 3 copias por carta y no más de las que tenés; Fusion, Synchro, Xyz y Link van al Extra solas. Se exportan como .ydk y se sincronizan con la cuenta.
+- **Idioma**: en Settings → Language, inglés o japonés (interfaz, tipos de carta y nombres de los binders de fábrica). Los nombres y textos de las cartas siguen en inglés porque YGOPRODeck no los tiene en japonés.
 - **Stickers de rareza**: se muestran u ocultan todos con el botón de la barra, o de a uno desde el panel de la carta.
 
 Teclado: ← → pasan página, Inicio / Fin van a la primera / última, Esc deselecciona.

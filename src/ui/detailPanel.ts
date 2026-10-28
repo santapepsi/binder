@@ -10,9 +10,10 @@ import { pageOfSlot, pocketOfSlot } from "../model/layout.ts";
 import type { Binder, BinderCard } from "../model/types.ts";
 import { copyFields } from "./copyFields.ts";
 import { field, h, icon } from "./dom.ts";
+import { binderName, t, translateTypeLine } from "../i18n.ts";
 
 export class DetailPanel {
-  readonly element = h("aside", { class: "detail panel", "aria-label": "Card details" });
+  readonly element = h("aside", { class: "detail panel", "aria-label": t("Card details") });
   private current: BinderCard | null = null;
 
   constructor(
@@ -34,17 +35,17 @@ export class DetailPanel {
     });
     const info = card.card;
     const stats = [
-      info.level ? `Level ${info.level}` : null,
-      info.rank ? `Rank ${info.rank}` : null,
-      info.linkRating ? `Link ${info.linkRating}` : null,
-      info.pendulumScale !== null ? `Scale ${info.pendulumScale}` : null,
-      info.atk !== null ? `ATK ${info.atk}` : null,
-      info.def !== null && !info.linkRating ? `DEF ${info.def}` : null,
+      info.level ? t("Level {n}", { n: String(info.level) }) : null,
+      info.rank ? t("Rank {n}", { n: String(info.rank) }) : null,
+      info.linkRating ? t("Link {n}", { n: String(info.linkRating) }) : null,
+      info.pendulumScale !== null ? t("Scale {n}", { n: String(info.pendulumScale) }) : null,
+      info.atk !== null ? t("ATK {n}", { n: String(info.atk) }) : null,
+      info.def !== null && !info.linkRating ? t("DEF {n}", { n: String(info.def) }) : null,
     ].filter(Boolean);
     const others = this.store.liveBinders().filter((binder) => binder.id !== card.binderId);
-    const move = h("select", { "aria-label": "Move to binder" });
-    move.append(h("option", { value: "", text: "Move to…" }));
-    others.forEach((binder) => move.append(h("option", { value: binder.id, text: binder.name })));
+    const move = h("select", { "aria-label": t("Move to binder") });
+    move.append(h("option", { value: "", text: t("Move to…") }));
+    others.forEach((binder) => move.append(h("option", { value: binder.id, text: binderName(binder) })));
     move.addEventListener("change", () => move.value && this.store.moveToBinder(card.id, move.value));
     const rarity = card.printing?.rarity;
     const picture = rarity ? rarityPicture(rarity) : null;
@@ -54,25 +55,25 @@ export class DetailPanel {
         ? h("img", { class: "rarity-badge", src: picture, alt: rarity, title: rarity })
         : Object.assign(drawRarityBadge(rarity), { className: "rarity-badge", title: rarity });
     this.element.replaceChildren(
-      h("button", { class: "icon-button sheet-close", "aria-label": "Close", onclick: () => this.onClose() }, icon("close")),
+      h("button", { class: "icon-button sheet-close", "aria-label": t("Close"), onclick: () => this.onClose() }, icon("close")),
       h(
         "div",
         { class: "detail-scroll" },
         art,
         h("h2", { class: "card-name", text: info.name }),
-        h("div", { class: `type-tag frame-${frameOf(info)}`, text: `[${typeLine(info)}]` }),
+        h("div", { class: `type-tag frame-${frameOf(info)}`, text: `[${translateTypeLine(typeLine(info))}]` }),
         stats.length ? h("div", { class: "stats", text: stats.join("  ·  ") }) : null,
         info.pendulumText ? h("p", { class: "card-text pendulum", text: info.pendulumText }) : null,
-        h("p", { class: "card-text", text: info.text || "No card text." }),
+        h("p", { class: "card-text", text: info.text || t("No card text.") }),
         h(
           "section",
           { class: "copy" },
           h(
             "h3",
             {},
-            "Your copy",
+            t("Your copy"),
             badge,
-            h("small", { text: `Page ${pageOfSlot(card.slot) + 1} · pocket ${pocketOfSlot(card.slot) + 1}` })
+            h("small", { text: t("Page {page} · pocket {pocket}", { page: pageOfSlot(card.slot) + 1, pocket: pocketOfSlot(card.slot) + 1 }) })
           ),
           card.printing
             ? h(
@@ -88,7 +89,7 @@ export class DetailPanel {
                     this.store.updateCard(card.id, { printing: { ...current.printing, hideBadge } });
                   },
                 }),
-                h("span", { text: "Show the rarity sticker on the pocket" })
+                h("span", { text: t("Show the rarity sticker on the pocket") })
               )
             : null,
           copyFields(this.getCatalog(), info, { ...card }, (patch) => {
@@ -106,16 +107,16 @@ export class DetailPanel {
           h(
             "div",
             { class: "detail-actions" },
-            field("Binder", move),
+            field(t("Binder"), move),
             h(
               "button",
               {
                 class: "button danger",
                 onclick: () => {
-                  if (confirm(`Remove ${info.name} from this binder?`)) this.store.removeCard(card.id);
+                  if (confirm(t("Remove {name} from this binder?", { name: info.name }))) this.store.removeCard(card.id);
                 },
               },
-              icon("trash", "Remove")
+              icon("trash", t("Remove"))
             )
           )
         )
@@ -131,12 +132,12 @@ export class DetailPanel {
         "div",
         { class: "detail-scroll empty-state" },
         h("div", { class: "empty-cover", style: `--cover:${binder.coverColor}` }),
-        h("h2", { class: "card-name", text: binder.name }),
-        h("p", { class: "stats", text: `${cards.length} cards · ${unique} different` }),
+        h("h2", { class: "card-name", text: binderName(binder) }),
+        h("p", { class: "stats", text: t("{n} cards · {unique} different", { n: cards.length, unique }) }),
         h(
           "p",
           { class: "card-text" },
-          "Tap a card to see it here. Tap an empty pocket to add a card there. Drag a card (long-press on touch screens) to move it; hold it at the page edge to turn the page."
+          t("Tap a card to see it here. Tap an empty pocket to add a card there. Drag a card (long-press on touch screens) to move it; hold it at the page edge to turn the page.")
         )
       )
     );

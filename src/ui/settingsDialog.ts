@@ -7,21 +7,22 @@ import { coverFontBlob, setCoverFont } from "../data/coverFont.ts";
 import { saveSettings, trimUrl, type Settings } from "../data/settings.ts";
 import type { Sync, SyncStatus } from "../sync/sync.ts";
 import { dialogShell, field, h, openDialog } from "./dom.ts";
+import { LANGUAGE_NAMES, binderName, language, locale, setLanguage, t, type Language } from "../i18n.ts";
 
 export function describeStatus(status: SyncStatus): string {
   switch (status.state) {
     case "disabled":
-      return "Sync is not set up — binders are saved on this device.";
+      return t("Sync is not set up — binders are saved on this device.");
     case "signed-out":
-      return "Signed out — binders are saved on this device.";
+      return t("Signed out — binders are saved on this device.");
     case "offline":
-      return "Offline — changes will sync when you reconnect.";
+      return t("Offline — changes will sync when you reconnect.");
     case "syncing":
-      return "Syncing…";
+      return t("Syncing…");
     case "synced":
-      return `Synced at ${new Date(status.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}.`;
+      return t("Synced at {time}.", { time: new Date(status.at).toLocaleTimeString(locale() ?? [], { hour: "2-digit", minute: "2-digit" }) });
     case "error":
-      return `Sync problem: ${status.message}`;
+      return t("Sync problem: {message}", { message: status.message });
   }
 }
 
@@ -30,22 +31,26 @@ export function openSettings(settings: Settings, sync: Sync, catalog: Catalog, t
   const describeCatalog = () => {
     const info = catalog.info();
     catalogStatus.textContent = info.cards
-      ? `${info.cards.toLocaleString()} cards on this device, downloaded ${new Date(info.updatedAt!).toLocaleDateString()}.`
-      : "Not downloaded yet. It downloads the first time you add a card.";
+      ? t("{n} cards on this device, downloaded {date}.", { n: info.cards, date: new Date(info.updatedAt!).toLocaleDateString(locale()) })
+      : t("Not downloaded yet. It downloads the first time you add a card.");
   };
-  const update = h("button", { class: "button ghost", type: "button", text: "Check for updates" });
+  const update = h("button", { class: "button ghost", type: "button", text: t("Check for updates") });
   update.addEventListener("click", async () => {
     update.disabled = true;
     try {
       const progress = ({ phase, bytes }: { phase: string; bytes?: number }) =>
         (catalogStatus.textContent =
-          phase === "downloading" ? `Downloading… ${((bytes ?? 0) / 1048576).toFixed(1)} MB` : phase === "saving" ? "Saving…" : "Checking…");
+          phase === "downloading"
+            ? t("Downloading… {mb} MB", { mb: ((bytes ?? 0) / 1048576).toFixed(1) })
+            : phase === "saving"
+              ? t("Saving…")
+              : t("Checking…"));
       if (!catalog.ready) await catalog.ensure(progress);
       const changed = await catalog.refreshIfChanged(progress);
       describeCatalog();
-      if (!changed) catalogStatus.textContent += " It is up to date.";
+      if (!changed) catalogStatus.textContent += t(" It is up to date.");
     } catch (error) {
-      catalogStatus.textContent = `Could not update: ${(error as Error).message}`;
+      catalogStatus.textContent = t("Could not update: {error}", { error: (error as Error).message });
     } finally {
       update.disabled = false;
     }
@@ -54,9 +59,9 @@ export function openSettings(settings: Settings, sync: Sync, catalog: Catalog, t
   describeCatalog();
 
   const supabaseUrl = h("input", { type: "url", value: settings.supabaseUrl, placeholder: "https://xxxx.supabase.co", spellcheck: false });
-  const supabaseKey = h("input", { type: "text", value: settings.supabaseKey, placeholder: "Publishable (anon) key", spellcheck: false });
-  const email = h("input", { type: "email", placeholder: "Email", autocomplete: "email" });
-  const password = h("input", { type: "password", placeholder: "Password", autocomplete: "current-password" });
+  const supabaseKey = h("input", { type: "text", value: settings.supabaseKey, placeholder: t("Publishable (anon) key"), spellcheck: false });
+  const email = h("input", { type: "email", placeholder: t("Email"), autocomplete: "email" });
+  const password = h("input", { type: "password", placeholder: t("Password"), autocomplete: "current-password" });
   const account = h("div", { class: "account" });
   const status = h("p", { class: "muted", text: describeStatus(sync.status) });
   const warning = h("p", { class: "warning" });
@@ -81,7 +86,7 @@ export function openSettings(settings: Settings, sync: Sync, catalog: Catalog, t
 
   const attempt = async (action: () => Promise<unknown>) => {
     persist();
-    status.textContent = "Working…";
+    status.textContent = t("Working…");
     try {
       await action();
       renderAccount();
@@ -92,15 +97,15 @@ export function openSettings(settings: Settings, sync: Sync, catalog: Catalog, t
 
   const renderAccount = () => {
     if (!sync.configured) {
-      account.replaceChildren(h("p", { class: "muted", text: "Fill in your Supabase project to sign in and sync between web and Android." }));
+      account.replaceChildren(h("p", { class: "muted", text: t("Fill in your Supabase project to sign in and sync between web and Android.") }));
     } else if (sync.email) {
       account.replaceChildren(
-        h("p", { text: `Signed in as ${sync.email}` }),
+        h("p", { text: t("Signed in as {email}", { email: sync.email }) }),
         h(
           "div",
           { class: "dialog-actions" },
-          h("button", { class: "button ghost", type: "button", text: "Sync now", onclick: () => attempt(() => sync.syncNow()) }),
-          h("button", { class: "button ghost", type: "button", text: "Sign out", onclick: () => attempt(() => sync.signOut()) })
+          h("button", { class: "button ghost", type: "button", text: t("Sync now"), onclick: () => attempt(() => sync.syncNow()) }),
+          h("button", { class: "button ghost", type: "button", text: t("Sign out"), onclick: () => attempt(() => sync.signOut()) })
         )
       );
     } else {
@@ -109,17 +114,17 @@ export function openSettings(settings: Settings, sync: Sync, catalog: Catalog, t
         h(
           "div",
           { class: "dialog-actions" },
-          h("button", { class: "button primary", type: "button", text: "Sign in", onclick: () => attempt(() => sync.signIn(email.value.trim(), password.value)) }),
+          h("button", { class: "button primary", type: "button", text: t("Sign in"), onclick: () => attempt(() => sync.signIn(email.value.trim(), password.value)) }),
           h(
             "button",
             {
               class: "button ghost",
               type: "button",
-              text: "Create account",
+              text: t("Create account"),
               onclick: () =>
                 attempt(async () => {
                   const signedIn = await sync.signUp(email.value.trim(), password.value);
-                  if (!signedIn) status.textContent = "Check your email to confirm the account, then sign in.";
+                  if (!signedIn) status.textContent = t("Check your email to confirm the account, then sign in.");
                 }),
             }
           )
@@ -136,7 +141,7 @@ export function openSettings(settings: Settings, sync: Sync, catalog: Catalog, t
     const blob = await cardBackBlob();
     if (blob) {
       const url = URL.createObjectURL(blob);
-      backPreview.replaceChildren(h("img", { src: url, alt: "Card back", onload: () => URL.revokeObjectURL(url) }));
+      backPreview.replaceChildren(h("img", { src: url, alt: t("Card back"), onload: () => URL.revokeObjectURL(url) }));
     } else backPreview.replaceChildren(paintCardBack(160));
   };
   showBack();
@@ -146,7 +151,7 @@ export function openSettings(settings: Settings, sync: Sync, catalog: Catalog, t
     if (file) await table.setCardBack(file);
     showBack();
   });
-  const backReset = h("button", { class: "button ghost", type: "button", text: "Use the default back" });
+  const backReset = h("button", { class: "button ghost", type: "button", text: t("Use the default back") });
   backReset.addEventListener("click", async () => {
     await table.setCardBack(null);
     backFile.value = "";
@@ -154,13 +159,13 @@ export function openSettings(settings: Settings, sync: Sync, catalog: Catalog, t
   });
 
   // Font for the lettering on binder covers.
-  const fontSample = h("p", { class: "font-sample", text: "Normal Monsters" });
+  const fontSample = h("p", { class: "font-sample", text: binderName({ name: "Normal Monsters" }) });
   fontSample.style.fontFamily = COVER_FONT;
   const fontStatus = h("small", { class: "muted" });
   const showFont = async () => {
     fontStatus.textContent = (await coverFontBlob())
-      ? "Using your font. It is kept on this device and in your account, not published with the app."
-      : "Using the app font. Load a .ttf or .otf file to use another one.";
+      ? t("Using your font. It is kept on this device and in your account, not published with the app.")
+      : t("Using the app font. Load a .ttf or .otf file to use another one.");
   };
   showFont();
   window.addEventListener("coverfont", showFont);
@@ -171,47 +176,63 @@ export function openSettings(settings: Settings, sync: Sync, catalog: Catalog, t
     try {
       await setCoverFont(file);
     } catch {
-      fontStatus.textContent = "That file is not a font this browser can read.";
+      fontStatus.textContent = t("That file is not a font this browser can read.");
       return;
     }
     showFont();
   });
-  const fontReset = h("button", { class: "button ghost", type: "button", text: "Use the app font" });
+  const fontReset = h("button", { class: "button ghost", type: "button", text: t("Use the app font") });
   fontReset.addEventListener("click", async () => {
     await setCoverFont(null);
     fontFile.value = "";
     showFont();
   });
 
+  // Interface language: English or Japanese. Changing it reloads the app.
+  const languageSelect = h("select", { "aria-label": t("Interface language") });
+  for (const [value, name] of Object.entries(LANGUAGE_NAMES))
+    languageSelect.append(h("option", { value, text: name, selected: value === language }));
+  languageSelect.addEventListener("change", () => {
+    persist();
+    setLanguage(languageSelect.value as Language);
+  });
+
   const dialog = dialogShell(
-    "Settings",
+    t("Settings"),
     h(
       "section",
       { class: "settings-section" },
-      h("h3", { text: "Cover lettering" }),
+      h("h3", { text: t("Language") }),
+      field(t("Interface language"), languageSelect),
+      h("small", { class: "muted", text: t("Card names and texts come from YGOPRODeck, which has them in English only.") })
+    ),
+    h(
+      "section",
+      { class: "settings-section" },
+      h("h3", { text: t("Cover lettering") }),
       fontSample,
-      field("Font file", fontFile),
+      field(t("Font file"), fontFile),
       fontStatus,
       h("div", { class: "dialog-actions start" }, fontReset)
     ),
     h(
       "section",
       { class: "settings-section" },
-      h("h3", { text: "Card back" }),
-      h("div", { class: "back-row" }, backPreview, h("div", {}, field("Picture for face-down cards", backFile), backReset))
+      h("h3", { text: t("Card back") }),
+      h("div", { class: "back-row" }, backPreview, h("div", {}, field(t("Picture for face-down cards"), backFile), backReset))
     ),
     h(
       "section",
       { class: "settings-section" },
-      h("h3", { text: "Card database" }),
+      h("h3", { text: t("Card database") }),
       catalogStatus,
       h("div", { class: "dialog-actions start" }, update)
     ),
     h(
       "section",
       { class: "settings-section" },
-      h("h3", { text: "Account & sync" }),
-      h("div", { class: "field-row" }, field("Supabase URL", supabaseUrl), field("Key", supabaseKey)),
+      h("h3", { text: t("Account & sync") }),
+      h("div", { class: "field-row" }, field("Supabase URL", supabaseUrl), field(t("Key"), supabaseKey)),
       account,
       status,
       warning
@@ -219,7 +240,7 @@ export function openSettings(settings: Settings, sync: Sync, catalog: Catalog, t
     h(
       "p",
       { class: "credits" },
-      "Card texts and images come from YGOPRODeck. Yu-Gi-Oh! is a trademark of Konami; this app is not affiliated with Konami."
+      t("Card texts and images come from YGOPRODeck. Yu-Gi-Oh! is a trademark of Konami; this app is not affiliated with Konami.")
     )
   );
   dialog.addEventListener("close", persist);

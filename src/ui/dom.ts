@@ -1,5 +1,7 @@
 // Tiny DOM helpers and the dialog/toast plumbing shared by the UI.
 
+import { t } from "../i18n.ts";
+
 type Props = Record<string, unknown> & { class?: string; text?: string };
 
 export function h<K extends keyof HTMLElementTagNameMap>(
@@ -47,6 +49,7 @@ export const ICONS = {
   search: svg(`<circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/>`),
   back: svg(`<path d="M15 5 8 12l7 7"/>`),
   sticker: svg(`<rect x="3" y="6" width="18" height="12" rx="2"/><path d="M8 10v4M12 10v4M10 12h-2M12 10h2.5a1.5 1.5 0 0 1 0 3H12M14 13l1.5 1"/>`),
+  deckbox: `<svg viewBox="0 0 40 40" width="100%" height="100%"><defs><linearGradient id="dbf" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6d82a3"/><stop offset="1" stop-color="#2c3a52"/></linearGradient><linearGradient id="dbl" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4c5f80"/><stop offset="1" stop-color="#26324a"/></linearGradient></defs><path d="M6 10 12 4h24l-5 6z" fill="#8fa3c2" stroke="#c9a24a" stroke-width="1.2" stroke-linejoin="round"/><path d="M31 10l5-6v22l-5 7z" fill="#1d2738" stroke="#c9a24a" stroke-width="1.2" stroke-linejoin="round"/><rect x="6" y="10" width="25" height="23" rx="2.5" fill="url(#dbf)" stroke="#c9a24a" stroke-width="1.2"/><path d="M8 10h21v9.5q0 3.5-3.5 3.5h-14q-3.5 0-3.5-3.5z" fill="url(#dbl)" stroke="#0f1520" stroke-opacity=".55" stroke-width=".8"/><path d="M10 12.5h17" stroke="#fff" stroke-opacity=".35" stroke-width="1.2" stroke-linecap="round"/><rect x="16" y="21" width="5" height="3.4" rx="1" fill="#ecd48a" stroke="#8a6a2c" stroke-width=".6"/></svg>`,
   spot: svg(`<rect x="4" y="3" width="10" height="14" rx="1" transform="rotate(-12 9 10)"/><path d="M17 13v8M13 17h8"/>`),
 };
 
@@ -81,7 +84,7 @@ window.addEventListener("popstate", () => {
 
 export function dialogShell(title: string, ...body: Node[]): HTMLDialogElement {
   const dialog = h("dialog", { class: "panel dialog" });
-  const close = h("button", { class: "icon-button", "aria-label": "Close", onclick: () => dialog.close() }, icon("close"));
+  const close = h("button", { class: "icon-button", "aria-label": t("Close"), onclick: () => dialog.close() }, icon("close"));
   dialog.append(h("div", { class: "dialog-inner" }, h("header", { class: "dialog-head" }, h("h2", { text: title }), close), ...body));
   dialog.addEventListener("click", (event) => {
     if (event.target === dialog) dialog.close();
@@ -120,12 +123,20 @@ export function field(label: string, control: HTMLElement, hint?: string) {
   return h("label", { class: "field" }, h("span", { class: "field-label", text: label }), control, hint ? h("small", { text: hint }) : null);
 }
 
-export function select(options: string[], value: string, onchange?: (value: string) => void) {
+/** Drop-down of stored values; label() gives the text shown for each (e.g. translated). */
+export function select(options: string[], value: string, onchange?: (value: string) => void, label: (value: string) => string = (option) => option) {
   const element = h("select", { onchange: () => onchange?.(element.value) });
-  for (const option of options) element.append(h("option", { value: option, text: option, selected: option === value }));
+  for (const option of options) element.append(h("option", { value: option, text: label(option), selected: option === value }));
   element.value = value;
   return element;
 }
+
+/** Deck box picture (Tag Force style, with the app's gold trim). */
+export const deckboxIcon = (large = false) => {
+  const span = h("span", { class: `deckbox-icon${large ? " large" : ""}`, "aria-hidden": "true" });
+  span.innerHTML = ICONS.deckbox;
+  return span;
+};
 
 /** Children list without the empty (null/false) entries, for replaceChildren. */
 export const nodes = (...items: (Node | string | null | undefined | false)[]) =>

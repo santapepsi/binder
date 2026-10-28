@@ -12,6 +12,7 @@ import type { Deck, DeckStore } from "../data/decks.ts";
 import type { TableSlot } from "../model/table.ts";
 import { applyRemoteCoverFont, coverFontBlob, coverFontState, markCoverFontSynced } from "../data/coverFont.ts";
 import { trimUrl, type Settings } from "../data/settings.ts";
+import { t } from "../i18n.ts";
 
 interface Session {
   access_token: string;
@@ -82,9 +83,9 @@ export class Sync extends EventTarget {
   get schemaWarning(): string | null {
     if (!this.missing.size) return null;
     const parts = [...this.missing].map((part) =>
-      part === "show_name" ? "hiding the name on covers" : part === "binder_tables" ? "cards on the table and the card back" : part
+      part === "show_name" ? t("hiding the name on covers") : part === "binder_tables" ? t("cards on the table and the card back") : part
     );
-    return `Not syncing ${parts.join(" and ")}: run supabase/schema.sql again in your Supabase SQL editor.`;
+    return t("Not syncing {parts}: run supabase/schema.sql again in your Supabase SQL editor.", { parts: parts.join(t(" and ")) });
   }
 
   constructor(

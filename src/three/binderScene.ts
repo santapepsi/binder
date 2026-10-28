@@ -1,6 +1,7 @@
 // The 3D binder: table, boards, rings, pocket pages, page turns, cover opening,
 // hover/selection glow and drag & drop between pockets.
 
+import { binderName } from "../i18n.ts";
 import * as THREE from "three";
 import { POCKETS, pageCount, pageOfSlot, pagesOfSpread, pocketOfSlot, slotOf, spreadCount, spreadOfPage } from "../model/layout.ts";
 import type { Binder, BinderCard } from "../model/types.ts";
@@ -304,7 +305,7 @@ export class BinderScene {
       return texture;
     };
     this.coverTextures = [];
-    const outer = make(paintCover(binder.coverColor, picture, binder.showName === false ? null : binder.name));
+    const outer = make(paintCover(binder.coverColor, picture, binder.showName === false ? null : binderName(binder)));
     const inside = make(paintInside(binder.coverColor));
     const edge = new THREE.Color(edgeColor(binder.coverColor));
     const set = (mesh: THREE.Mesh, top: THREE.Texture | null, bottom: THREE.Texture | null) => {
