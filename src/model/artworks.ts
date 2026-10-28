@@ -10,12 +10,6 @@ export const ygoprodeckArtwork = (id: number | string): Artwork => ({
   smallUrl: `${BASE}/cards_small/${id}.jpg`,
 });
 
-/** Builds an artwork from a YGOPRODeck image URL. */
-export function artworkFromUrl(url: string): Artwork | null {
-  const match = /\/images\/cards(?:_small|_cropped)?\/(\d+)\.(?:jpg|png|webp)$/i.exec(url);
-  return match ? ygoprodeckArtwork(match[1]) : null;
-}
-
 /** Main artwork first, then the alternates in id order, without duplicates. */
 export function sortArtworks(artworks: Artwork[], mainId: number | null): Artwork[] {
   const unique = [...new Map(artworks.map((art) => [art.id, art])).values()];

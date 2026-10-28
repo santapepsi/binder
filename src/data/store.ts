@@ -3,7 +3,7 @@
 
 import { DEFAULT_BINDERS, binderKindFor, recoloredDefault, updatedDefaultColor } from "../model/classify.ts";
 import { firstFreeSlot } from "../model/layout.ts";
-import type { Binder, BinderCard, BinderKind, CardSnapshot } from "../model/types.ts";
+import type { Binder, BinderCard, CardSnapshot } from "../model/types.ts";
 import * as db from "./db.ts";
 
 export type NewCopy = Pick<BinderCard, "printing" | "artworkId" | "condition" | "language" | "edition" | "notes">;
@@ -252,9 +252,5 @@ export class Store extends EventTarget {
 
   private usedSlotsExcluding(binderId: string, id: string) {
     return new Set(this.cardsOf(binderId).filter((card) => card.id !== id).map((card) => card.slot));
-  }
-
-  kindLabel(kind: BinderKind) {
-    return DEFAULT_BINDERS.find((preset) => preset.kind === kind)?.name ?? "Personal";
   }
 }

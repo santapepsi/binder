@@ -112,6 +112,8 @@ export class BinderScene {
   private busy = false;
   private queued: (() => void) | null = null;
   private needsRender = true;
+  /** Only the glow frames changed: a render without a new shadow pass. */
+  private needsGlowRender = false;
   private selectedSlot: number | null = null;
   private hoverHit: Hit | null = null;
 
@@ -137,6 +139,8 @@ export class BinderScene {
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    // The shadow map is only redrawn when something moved, not for every hover highlight.
+    this.renderer.shadowMap.autoUpdate = false;
     this.renderer.setClearColor(0x1b0f0c);
     this.renderer.domElement.className = "scene-canvas";
     this.renderer.domElement.style.touchAction = "none";
@@ -604,13 +608,24 @@ export class BinderScene {
     this.layout();
   }
 
+  private pendingRepaint = new Set<number>();
+
+  /** Repaints a page once per frame, however many of its images arrived meanwhile. */
   private repaint(page: number) {
-    const entry = this.textures.get(page);
-    if (!entry) return;
-    this.paint(page, entry.canvas);
-    entry.texture.needsUpdate = true;
-    entry.stale = false;
-    this.needsRender = true;
+    if (!this.textures.has(page)) return;
+    if (!this.pendingRepaint.size)
+      requestAnimationFrame(() => {
+        for (const queued of this.pendingRepaint) {
+          const entry = this.textures.get(queued);
+          if (!entry) continue;
+          this.paint(queued, entry.canvas);
+          entry.texture.needsUpdate = true;
+          entry.stale = false;
+        }
+        this.pendingRepaint.clear();
+        this.needsRender = true;
+      });
+    this.pendingRepaint.add(page);
   }
 
   /** Frees page textures that are far from the current spread and not on any sheet. */
@@ -744,9 +759,11 @@ export class BinderScene {
       active = true;
     }
     if (this.dragging) this.updateGhost(delta);
-    if (active || this.needsRender) {
+    if (active || this.needsRender || this.needsGlowRender) {
+      this.renderer.shadowMap.needsUpdate = active || this.needsRender;
       this.renderer.render(this.scene, this.camera);
       this.needsRender = false;
+      this.needsGlowRender = false;
     }
   }
 
@@ -792,7 +809,7 @@ export class BinderScene {
     this.placeGlow(this.selectGlow, this.dragging ? null : this.selectedSlot);
     const hover = this.hoverHit?.slot ?? null;
     this.placeGlow(this.hoverGlow, hover !== this.selectedSlot ? hover : null);
-    this.needsRender = true;
+    this.needsGlowRender = true;
   }
 
   private setHover(hit: Hit | null) {

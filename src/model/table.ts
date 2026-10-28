@@ -37,11 +37,6 @@ export function defaultTable(id: () => string): TableSlot[] {
   return [...side(-1), ...side(1)];
 }
 
-/** A spot's farthest reach from the rings along x, to frame the camera. */
-export function tableReach(slots: TableSlot[]): number {
-  return slots.reduce((max, slot) => Math.max(max, Math.abs(slot.x) + 5.5), 0);
-}
-
 /** Whether a table point (x, z) falls inside a spot (card-sized rectangle, rotated). */
 export function slotContains(slot: TableSlot, x: number, z: number, width = 6.6, depth = 9.3): boolean {
   const dx = x - slot.x;

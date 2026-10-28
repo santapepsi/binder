@@ -110,7 +110,7 @@ export function openSettings(settings: Settings, sync: Sync, catalog: Catalog, t
       );
     } else {
       account.replaceChildren(
-        h("div", { class: "field-row" }, email, password),
+        h("div", { class: "field-row stack" }, email, password),
         h(
           "div",
           { class: "dialog-actions" },
@@ -200,6 +200,12 @@ export function openSettings(settings: Settings, sync: Sync, catalog: Catalog, t
   const dialog = dialogShell(
     t("Settings"),
     h(
+      "div",
+      { class: "settings-grid" },
+      h(
+        "div",
+        { class: "settings-column" },
+    h(
       "section",
       { class: "settings-section" },
       h("h3", { text: t("Language") }),
@@ -221,6 +227,10 @@ export function openSettings(settings: Settings, sync: Sync, catalog: Catalog, t
       h("h3", { text: t("Card back") }),
       h("div", { class: "back-row" }, backPreview, h("div", {}, field(t("Picture for face-down cards"), backFile), backReset))
     ),
+      ),
+      h(
+        "div",
+        { class: "settings-column" },
     h(
       "section",
       { class: "settings-section" },
@@ -232,10 +242,12 @@ export function openSettings(settings: Settings, sync: Sync, catalog: Catalog, t
       "section",
       { class: "settings-section" },
       h("h3", { text: t("Account & sync") }),
-      h("div", { class: "field-row" }, field("Supabase URL", supabaseUrl), field(t("Key"), supabaseKey)),
+      h("div", { class: "field-row stack" }, field("Supabase URL", supabaseUrl), field(t("Key"), supabaseKey)),
       account,
       status,
       warning
+    )
+      )
     ),
     h(
       "p",
@@ -243,6 +255,7 @@ export function openSettings(settings: Settings, sync: Sync, catalog: Catalog, t
       t("Card texts and images come from YGOPRODeck. Yu-Gi-Oh! is a trademark of Konami; this app is not affiliated with Konami.")
     )
   );
+  dialog.classList.add("wide");
   dialog.addEventListener("close", persist);
   openDialog(dialog);
 }

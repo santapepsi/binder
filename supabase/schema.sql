@@ -38,10 +38,11 @@ alter table public.binders add column if not exists show_name boolean not null d
 
 create index if not exists binders_user_sync on public.binders (user_id, server_updated_at);
 create index if not exists binder_cards_user_sync on public.binder_cards (user_id, server_updated_at);
+create index if not exists binder_cards_binder_id on public.binder_cards (binder_id);
 
 -- server_updated_at drives incremental pulls, independent of device clocks.
 create or replace function public.touch_server_updated_at() returns trigger
-language plpgsql as $$
+language plpgsql set search_path = '' as $$
 begin
   new.server_updated_at := now();
   return new;
@@ -58,11 +59,11 @@ alter table public.binders enable row level security;
 alter table public.binder_cards enable row level security;
 
 drop policy if exists "own binders" on public.binders;
-create policy "own binders" on public.binders
-  for all using (user_id = auth.uid()) with check (user_id = auth.uid());
+create policy "own binders" on public.binders for all to authenticated
+  using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
 drop policy if exists "own binder cards" on public.binder_cards;
-create policy "own binder cards" on public.binder_cards
-  for all using (user_id = auth.uid()) with check (user_id = auth.uid());
+create policy "own binder cards" on public.binder_cards for all to authenticated
+  using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
 
 -- Private bucket for cover pictures, one folder per user.
 insert into storage.buckets (id, name, public)
@@ -70,14 +71,15 @@ values ('covers', 'covers', false)
 on conflict (id) do nothing;
 
 drop policy if exists "own covers read" on storage.objects;
-create policy "own covers read" on storage.objects for select
-  using (bucket_id = 'covers' and (storage.foldername(name))[1] = auth.uid()::text);
+create policy "own covers read" on storage.objects for select to authenticated
+  using (bucket_id = 'covers' and (storage.foldername(name))[1] = (select auth.uid())::text);
 drop policy if exists "own covers write" on storage.objects;
-create policy "own covers write" on storage.objects for insert
-  with check (bucket_id = 'covers' and (storage.foldername(name))[1] = auth.uid()::text);
+create policy "own covers write" on storage.objects for insert to authenticated
+  with check (bucket_id = 'covers' and (storage.foldername(name))[1] = (select auth.uid())::text);
 drop policy if exists "own covers update" on storage.objects;
-create policy "own covers update" on storage.objects for update
-  using (bucket_id = 'covers' and (storage.foldername(name))[1] = auth.uid()::text);
+create policy "own covers update" on storage.objects for update to authenticated
+  using (bucket_id = 'covers' and (storage.foldername(name))[1] = (select auth.uid())::text)
+  with check (bucket_id = 'covers' and (storage.foldername(name))[1] = (select auth.uid())::text);
 
 -- Public bucket with the card images of the cards in your binders, copied once
 -- from YGOPRODeck by the card-image function (supabase/functions/card-image).
@@ -101,5 +103,5 @@ create trigger binder_tables_touch before insert or update on public.binder_tabl
 
 alter table public.binder_tables enable row level security;
 drop policy if exists "own table" on public.binder_tables;
-create policy "own table" on public.binder_tables
-  for all using (user_id = auth.uid()) with check (user_id = auth.uid());
+create policy "own table" on public.binder_tables for all to authenticated
+  using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
