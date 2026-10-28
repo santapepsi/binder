@@ -76,12 +76,12 @@ export async function startApp(root: HTMLElement) {
     title,
     summary,
     h("span", { class: "spacer" }),
-    h("button", { class: "button primary add", onclick: () => addCard() }, icon("plus", t("Add card"))),
-    h("button", { class: "icon-button", "aria-label": t("Edit binder"), onclick: () => openBinderEditor(store, binder) }, icon("edit")),
+    h("button", { class: "button primary add", onclick: () => (mode === "deck" ? deckView.addCard() : addCard()) }, icon("plus", t("Add card"))),
+    h("button", { class: "icon-button binder-only", "aria-label": t("Edit binder"), onclick: () => openBinderEditor(store, binder) }, icon("edit")),
     h(
       "button",
       {
-        class: "icon-button",
+        class: "icon-button binder-only",
         "aria-label": t("Show or hide all rarity stickers"),
         title: t("Show or hide all rarity stickers"),
         onclick: async () => {
@@ -95,7 +95,7 @@ export async function startApp(root: HTMLElement) {
     h(
       "button",
       {
-        class: "icon-button",
+        class: "icon-button binder-only",
         "aria-label": t("Add a card spot to the table"),
         title: t("Add a card spot to the table"),
         onclick: async () => {

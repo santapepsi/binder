@@ -1017,10 +1017,9 @@ input[type="file"] {
 
 .deckbox-icon {
   display: inline-block;
-  width: 38px;
-  height: 38px;
+  width: 34px;
+  height: 34px;
   flex: none;
-  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.55));
 }
 
 .deckbox-icon svg {
@@ -1045,10 +1044,7 @@ input[type="file"] {
 
 .deck-mode .stage,
 .deck-mode .detail,
-.deck-mode .button.add,
-.deck-mode [aria-label="Edit binder"],
-.deck-mode [aria-label="Show or hide all rarity stickers"],
-.deck-mode [aria-label="Add a card spot to the table"] {
+.deck-mode .binder-only {
   display: none;
 }
 

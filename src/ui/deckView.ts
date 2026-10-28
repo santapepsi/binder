@@ -279,7 +279,7 @@ export class DeckView {
   }
 
   /** Add cards from the whole database, like adding to a binder. */
-  private pickCard() {
+  addCard() {
     const deck = this.deck;
     if (!deck) return;
     const side = this.tab === "side";
@@ -330,7 +330,6 @@ export class DeckView {
 
     this.toolbar.replaceChildren(...nodes(
       button(t("◀ Binders"), () => this.onClose(), true, "back"),
-      button(t("+ Add card"), () => this.pickCard(), true, "add-card-button"),
       this.tab === "binders" ? search : null,
       this.tab === "binders" ? sort : null,
       h("span", { class: "spacer" }),
