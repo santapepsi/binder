@@ -84,7 +84,7 @@ test("table spots: hit test follows the rotation", () => {
   assert.equal(slotContains({ ...spot, rotation: 0 }, 30, 4), true);
 });
 
-import { DEFAULT_BINDERS, updatedDefaultColor } from "../src/model/classify.ts";
+import { DEFAULT_BINDERS, coverBottom, coverTop, recoloredDefault, updatedDefaultColor } from "../src/model/classify.ts";
 
 test("binders on the old default colours move to the new ones; custom colours stay", () => {
   assert.equal(updatedDefaultColor({ kind: "monster-xyz", name: "Xyz Monsters", coverColor: "#1d1d22" }), "#1c1c1f");
@@ -92,6 +92,15 @@ test("binders on the old default colours move to the new ones; custom colours st
   assert.equal(updatedDefaultColor({ kind: "spell", name: "Spells", coverColor: "#123456" }), null);
   const colour = (kind: string) => DEFAULT_BINDERS.find((preset) => preset.kind === kind)!.coverColor;
   assert.equal(colour("monster-link"), colour("monster-ritual"));
-  assert.equal(colour("monster-effect"), colour("monster-normal"));
-  assert.equal(colour("monster-pendulum"), colour("spell"));
+  // Normal is beige, Effect orange-brown; Pendulum is orange-brown over spell green.
+  assert.equal(colour("monster-normal"), "#d8c8a4");
+  assert.equal(colour("monster-effect"), "#a8581f");
+  assert.equal(colour("monster-pendulum"), `${colour("monster-effect")}|${colour("spell")}`);
+  assert.equal(coverTop(colour("monster-pendulum")), "#a8581f");
+  assert.equal(coverBottom(colour("monster-pendulum")), "#1f5b2c");
+  // One-time move from the old red / green defaults; personal binders are never touched.
+  assert.equal(recoloredDefault({ kind: "monster-normal", coverColor: "#d21f2d" }), "#d8c8a4");
+  assert.equal(recoloredDefault({ kind: "monster-effect", coverColor: "#d21f2d" }), "#a8581f");
+  assert.equal(recoloredDefault({ kind: "personal", coverColor: "#d21f2d" }), null);
+  assert.equal(recoloredDefault({ kind: "monster-normal", coverColor: "#123456" }), null);
 });
