@@ -111,6 +111,7 @@ button {
 }
 
 .scene-canvas {
+  touch-action: none;
   display: block;
   width: 100%;
   height: 100%;
@@ -367,7 +368,7 @@ button {
 }
 
 .type-tag {
-  display: inline-block;
+  display: block;
   font-size: 19px;
   font-weight: 900;
   text-shadow: 0 2px 0 #000;
@@ -416,6 +417,45 @@ button {
   color: #bfe9dd;
 }
 
+.artwork-block {
+  margin-top: 12px;
+}
+
+.artworks {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+  padding: 4px 2px 6px;
+  overflow-x: auto;
+}
+
+.artwork-thumb {
+  flex: none;
+  width: 54px;
+  aspect-ratio: 59 / 86;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: 3px;
+  background: #2c2620;
+  opacity: 0.75;
+}
+
+.artwork-thumb canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.artwork-thumb:hover {
+  opacity: 1;
+}
+
+.artwork-thumb.selected {
+  opacity: 1;
+  border-color: var(--gold-light);
+  box-shadow: 0 0 10px rgba(236, 212, 138, 0.55);
+}
+
 .copy {
   margin-top: 18px;
   padding-top: 12px;
@@ -448,7 +488,7 @@ button {
   flex: 1;
 }
 
-@media (min-width: 760px) and (min-aspect-ratio: 9/10) {
+@media (min-aspect-ratio: 9/10) and (min-width: 760px), (min-aspect-ratio: 9/10) and (max-height: 519px) {
   .detail-art,
   .empty-state .empty-cover {
     width: auto;
@@ -837,7 +877,7 @@ input[type="file"] {
 
 /* ---------------------------------------------------------------- phones */
 
-@media (max-width: 759px), (max-aspect-ratio: 9/10) {
+@media (max-aspect-ratio: 9/10), (max-width: 759px) and (min-height: 520px) {
   .topbar {
     left: 8px;
     right: 8px;
@@ -885,9 +925,19 @@ input[type="file"] {
     font-size: 22px;
     padding-right: 40px;
   }
-  .card-text {
-    font-size: 16px;
+  .type-tag {
+    font-size: 17px;
+    margin-top: 2px;
   }
+  .stats {
+    margin-top: 4px;
+  }
+  .card-text {
+    margin-top: 6px;
+    font-size: 15px;
+    line-height: 1.25;
+  }
+  .artwork-block,
   .copy {
     clear: both;
   }
@@ -1464,7 +1514,7 @@ input[type="file"] {
   color: #9fe6a4;
 }
 
-@media (max-width: 759px), (max-aspect-ratio: 9/10) {
+@media (max-aspect-ratio: 9/10), (max-width: 759px) and (min-height: 520px) {
   .deck-mode .deck-view {
     inset: calc(66px + var(--safe-top)) 6px 6px;
     grid-template-columns: 1fr;
@@ -1504,5 +1554,83 @@ input[type="file"] {
   }
   .owned-label {
     font-size: 12px;
+  }
+}
+
+/* ---------------------------------------------------------------- touch screens */
+
+@media (pointer: coarse) {
+  .icon-button {
+    width: 46px;
+    height: 46px;
+  }
+  .button {
+    min-height: 46px;
+  }
+  .nav-button {
+    height: 52px;
+  }
+  .artwork-thumb {
+    width: 62px;
+  }
+}
+
+/* A phone turned sideways: the wide layout, with short bars and big simple buttons. */
+@media (min-aspect-ratio: 9/10) and (max-height: 519px) {
+  .topbar {
+    top: calc(6px + var(--safe-top));
+    left: calc(8px + env(safe-area-inset-left, 0px));
+    right: calc(8px + env(safe-area-inset-right, 0px));
+    min-height: 58px;
+    gap: 10px;
+  }
+  .icon-button {
+    width: 48px;
+    height: 48px;
+  }
+  .button {
+    min-height: 48px;
+    padding: 0 18px;
+  }
+  .title-button {
+    font-size: 22px;
+  }
+  .detail {
+    top: calc(72px + var(--safe-top));
+    left: calc(8px + env(safe-area-inset-left, 0px));
+    bottom: 8px;
+    width: min(34vw, 340px);
+  }
+  .detail-scroll {
+    padding: 10px 12px 14px;
+  }
+  .card-name {
+    margin-top: 10px;
+    font-size: 22px;
+  }
+  .card-text {
+    font-size: 15px;
+  }
+  .pager {
+    left: calc(50% + min(34vw, 340px) / 2);
+    bottom: calc(8px + var(--safe-bottom));
+    padding: 5px;
+    gap: 8px;
+  }
+  .nav-button {
+    width: 56px;
+    height: 54px;
+  }
+  .pager [aria-label="First page"],
+  .pager [aria-label="Last page"] {
+    display: none;
+  }
+  .page-label {
+    font-size: 22px;
+    min-width: 110px;
+  }
+  .detail-art,
+  .empty-state .empty-cover {
+    height: min(34vh, 200px);
   }
 }

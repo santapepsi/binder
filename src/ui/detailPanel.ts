@@ -3,6 +3,7 @@
 
 import type { Catalog } from "../data/catalog.ts";
 import { cardImage, prefetchCard } from "../data/images.ts";
+import { artworksOf } from "../model/artworks.ts";
 import type { Store } from "../data/store.ts";
 import { coverCss, coverTop, frameOf, typeLine } from "../model/classify.ts";
 import { drawRarityBadge, rarityPicture } from "../model/rarityBadges.ts";
@@ -65,6 +66,7 @@ export class DetailPanel {
         stats.length ? h("div", { class: "stats", text: stats.join("  ·  ") }) : null,
         info.pendulumText ? h("p", { class: "card-text pendulum", text: info.pendulumText }) : null,
         h("p", { class: "card-text", text: info.text || t("No card text.") }),
+        this.artworkRow(card, binder),
         h(
           "section",
           { class: "copy" },
@@ -98,12 +100,7 @@ export class DetailPanel {
               const updated = this.store.cards.get(card.id);
               if (updated) this.show(updated, binder);
             }
-            if ("artworkId" in patch) {
-              prefetchCard(info, patch.artworkId).catch(() => undefined);
-              const updated = this.store.cards.get(card.id);
-              if (updated) this.show(updated, binder);
-            }
-          }),
+          }, { artwork: false }),
           h(
             "div",
             { class: "detail-actions" },
@@ -122,6 +119,39 @@ export class DetailPanel {
         )
       )
     );
+  }
+
+  /** A row of the card's artworks to pick from (only when it has more than one). */
+  private artworkRow(card: BinderCard, binder: Binder) {
+    const artworks = artworksOf(card.card);
+    if (artworks.length < 2) return null;
+    const chosen = Math.max(0, artworks.findIndex((art) => art.id === card.artworkId));
+    const row = h("div", { class: "artworks", role: "radiogroup", "aria-label": t("Artwork") });
+    artworks.forEach((art, index) => {
+      const label = index === 0 ? t("Artwork 1 (main)") : t("Artwork {n}", { n: index + 1 });
+      const button = h("button", {
+        type: "button",
+        class: `artwork-thumb${index === chosen ? " selected" : ""}`,
+        role: "radio",
+        "aria-checked": String(index === chosen),
+        "aria-label": label,
+        title: label,
+        onclick: () => {
+          if (index === chosen) return;
+          this.store.updateCard(card.id, { artworkId: art.id });
+          prefetchCard(card.card, art.id).catch(() => undefined);
+          const updated = this.store.cards.get(card.id);
+          if (updated) this.show(updated, binder);
+        },
+      });
+      cardImage(card.card, "thumb", art.id).then((image) => {
+        const canvas = h("canvas", { width: image.width, height: image.height });
+        canvas.getContext("2d")!.drawImage(image, 0, 0);
+        button.replaceChildren(canvas);
+      });
+      row.append(button);
+    });
+    return h("div", { class: "artwork-block" }, h("div", { class: "field-label", text: t("Artwork") }), row);
   }
 
   private empty(binder: Binder) {

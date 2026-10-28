@@ -650,6 +650,9 @@ export class BinderScene {
   private insets = { left: 0, top: 0, bottom: 0 };
   /** Mouse-wheel zoom out: 1 frames the binder, up to MAX_ZOOM shows the table around it. */
   private zoom = 1;
+  /** Touch pointers on the canvas and the pinch in progress (two fingers = zoom out). */
+  private touches = new Map<number, { x: number; y: number }>();
+  private pinch: { distance: number; zoom: number } | null = null;
 
   /** Screen space covered by UI (px), so the binder is framed in the free area. */
   setInsets(insets: { left: number; top: number; bottom: number }) {
@@ -826,7 +829,10 @@ export class BinderScene {
     canvas.addEventListener("pointerdown", (event) => this.onDown(event));
     canvas.addEventListener("pointermove", (event) => this.onMove(event));
     canvas.addEventListener("pointerup", (event) => this.onUp(event));
-    canvas.addEventListener("pointercancel", () => this.cancelDrag());
+    canvas.addEventListener("pointercancel", (event) => {
+      this.endTouch(event);
+      this.cancelDrag();
+    });
     canvas.addEventListener("pointerleave", (event) => event.pointerType === "mouse" && !this.dragging && this.setHover(null));
     canvas.addEventListener("contextmenu", (event) => event.preventDefault());
     // Wheel: a little zoom out to reach the cards on the table at the sides, not far.
@@ -835,16 +841,51 @@ export class BinderScene {
       (event) => {
         event.preventDefault();
         if (this.dragging) return;
-        const next = THREE.MathUtils.clamp(this.zoom * Math.exp(event.deltaY * 0.0012), 1, MAX_ZOOM);
-        if (next === this.zoom) return;
-        this.zoom = next;
-        this.updateCamera();
+        this.setZoom(this.zoom * Math.exp(event.deltaY * 0.0012));
       },
       { passive: false }
     );
   }
 
+  /** Applies a zoom level (1 frames the binder, MAX_ZOOM shows the table around it). */
+  private setZoom(value: number) {
+    const next = THREE.MathUtils.clamp(value, 1, MAX_ZOOM);
+    if (next === this.zoom) return;
+    this.zoom = next;
+    this.updateCamera();
+  }
+
+  private pinchDistance() {
+    const [a, b] = [...this.touches.values()];
+    return Math.max(1, Math.hypot(a.x - b.x, a.y - b.y));
+  }
+
+  /** Tracks touches; returns true while a two-finger pinch owns the gesture. */
+  private trackTouch(event: PointerEvent, down: boolean) {
+    if (event.pointerType === "mouse") return false;
+    if (down) {
+      if (this.dragging || this.slotDrag) return false;
+      this.touches.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      if (this.touches.size === 2) {
+        window.clearTimeout(this.longPress);
+        this.down = null;
+        this.pinch = { distance: this.pinchDistance(), zoom: this.zoom };
+        this.renderer.domElement.setPointerCapture(event.pointerId);
+      }
+    } else if (this.touches.has(event.pointerId)) {
+      this.touches.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      if (this.pinch && this.touches.size === 2) this.setZoom((this.pinch.zoom * this.pinch.distance) / this.pinchDistance());
+    }
+    return this.pinch !== null || this.touches.size > 1;
+  }
+
+  private endTouch(event: PointerEvent) {
+    this.touches.delete(event.pointerId);
+    if (this.touches.size < 2) this.pinch = null;
+  }
+
   private onDown(event: PointerEvent) {
+    if (this.trackTouch(event, true)) return;
     if (!event.isPrimary || event.button > 0) return;
     this.renderer.domElement.setPointerCapture(event.pointerId);
     const { hit } = this.pick(event.clientX, event.clientY);
@@ -868,6 +909,7 @@ export class BinderScene {
   }
 
   private onMove(event: PointerEvent) {
+    if (this.trackTouch(event, false)) return;
     if (!event.isPrimary) return;
     const down = this.down;
     if (this.slotDrag) {
@@ -911,6 +953,9 @@ export class BinderScene {
   }
 
   private onUp(event: PointerEvent) {
+    const pinching = this.pinch !== null;
+    this.endTouch(event);
+    if (pinching) return;
     window.clearTimeout(this.longPress);
     const down = this.down;
     this.down = null;

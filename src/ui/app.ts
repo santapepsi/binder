@@ -22,7 +22,8 @@ import { DeckView } from "./deckView.ts";
 import { closeMenu, toggleMenu } from "./menu.ts";
 import { binderName, plural, t } from "../i18n.ts";
 
-const portrait = () => window.innerWidth < 760 || window.innerWidth / window.innerHeight < 0.9;
+/** Portrait layout (bottom sheet, one page in focus). A phone turned sideways is short, so it keeps the wide layout. */
+const portrait = () => window.innerWidth / window.innerHeight < 0.9 || (window.innerWidth < 760 && window.innerHeight >= 520);
 
 export async function startApp(root: HTMLElement) {
   const store = new Store();

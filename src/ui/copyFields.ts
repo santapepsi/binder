@@ -27,7 +27,8 @@ export function copyFields(
   catalog: Catalog,
   card: CardSnapshot,
   value: NewCopy,
-  onChange: (patch: Partial<NewCopy>) => void
+  onChange: (patch: Partial<NewCopy>) => void,
+  options: { artwork?: boolean } = {}
 ): HTMLElement {
   const languageSelect = select(LANGUAGES, value.language, (language) => onChange({ language }), t);
   const printingSlot = h("div", { class: "printing-slot" });
@@ -84,7 +85,7 @@ export function copyFields(
   // Alternate artworks: listed by number, the image shows once the card is in the binder.
   const artworks = artworksOf(card);
   let artworkField: HTMLElement | null = null;
-  if (artworks.length > 1) {
+  if (options.artwork !== false && artworks.length > 1) {
     const options = artworks.map((_, index) => (index === 0 ? t("Artwork 1 (main)") : t("Artwork {n}", { n: index + 1 })));
     const current = Math.max(0, artworks.findIndex((art) => art.id === value.artworkId));
     artworkField = field(
