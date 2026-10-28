@@ -2,7 +2,7 @@
 // cover boards, glow frames, and the pocket pages with their cards.
 
 import { POCKETS } from "../model/layout.ts";
-import { rarityTag } from "../model/classify.ts";
+import { rarityBadge } from "../model/rarityBadges.ts";
 import type { BinderCard } from "../model/types.ts";
 import type { Drawable } from "../data/images.ts";
 import {
@@ -156,18 +156,6 @@ export function paintGlow(): HTMLCanvasElement {
   return element;
 }
 
-const RARITY_STYLE: Record<string, string> = {
-  C: "#5f5a52",
-  R: "#7d8794",
-  SR: "#2c63b8",
-  UR: "#b78a17",
-  SCR: "#7b3fb8",
-  GR: "#5e6f80",
-  UTR: "#8a6a2a",
-  STR: "#c0367d",
-  QCSR: "#b03a2e",
-  CR: "#9e4f1c",
-};
 
 function wrapText(context: CanvasRenderingContext2D, text: string, width: number): string[] {
   const lines: string[] = [];
@@ -248,23 +236,19 @@ export function paintPage(target: HTMLCanvasElement | null, input: PagePainterIn
         lines.forEach((line, index) => context.fillText(line, (cr.x + cr.w / 2) * s, top + index * lineHeight));
       }
       context.restore();
-      const tag = rarityTag(card.printing?.rarity);
-      if (tag) {
-        context.font = `900 ${0.5 * s}px Bia, Nunito, system-ui, sans-serif`;
-        const tw = context.measureText(tag).width + 0.4 * s;
-        const tx = (cr.x + cr.w) * s - tw - 0.15 * s;
-        const ty = (cr.y + cr.h) * s - 0.95 * s;
-        context.fillStyle = RARITY_STYLE[tag] ?? "#3f4652";
-        context.beginPath();
-        context.roundRect(tx, ty, tw, 0.75 * s, 0.37 * s);
-        context.fill();
-        context.strokeStyle = "rgba(255,255,255,0.85)";
-        context.lineWidth = 1.5;
-        context.stroke();
-        context.fillStyle = "#fff";
-        context.textAlign = "center";
-        context.textBaseline = "middle";
-        context.fillText(tag, tx + tw / 2, ty + 0.4 * s);
+      const badge = rarityBadge(card.printing?.rarity);
+      if (badge) {
+        const bw = Number((badge as HTMLImageElement).naturalWidth || (badge as HTMLCanvasElement).width);
+        const bh = Number((badge as HTMLImageElement).naturalHeight || (badge as HTMLCanvasElement).height);
+        const height = (bw / bh < 1.2 ? 1.1 : 0.78) * s; // the round 25th-anniversary badge is a bit taller
+        const width = height * (bw / bh);
+        const tx = (cr.x + cr.w) * s - width - 0.12 * s;
+        const ty = (cr.y + cr.h) * s - height - 0.12 * s;
+        context.save();
+        context.shadowColor = "rgba(0,0,0,0.45)";
+        context.shadowBlur = 3;
+        context.drawImage(badge, tx, ty, width, height);
+        context.restore();
       }
     }
     // plastic sleeve over the card: sheen and welded seams

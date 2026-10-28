@@ -4,7 +4,8 @@
 import type { Catalog } from "../data/catalog.ts";
 import { cardImage, prefetchCard } from "../data/images.ts";
 import type { Store } from "../data/store.ts";
-import { frameOf, rarityTag, typeLine } from "../model/classify.ts";
+import { frameOf, typeLine } from "../model/classify.ts";
+import { drawRarityBadge, rarityPicture } from "../model/rarityBadges.ts";
 import { pageOfSlot, pocketOfSlot } from "../model/layout.ts";
 import type { Binder, BinderCard } from "../model/types.ts";
 import { copyFields } from "./copyFields.ts";
@@ -45,7 +46,13 @@ export class DetailPanel {
     move.append(h("option", { value: "", text: "Move to…" }));
     others.forEach((binder) => move.append(h("option", { value: binder.id, text: binder.name })));
     move.addEventListener("change", () => move.value && this.store.moveToBinder(card.id, move.value));
-    const tag = rarityTag(card.printing?.rarity);
+    const rarity = card.printing?.rarity;
+    const picture = rarity ? rarityPicture(rarity) : null;
+    const badge = !rarity
+      ? null
+      : picture
+        ? h("img", { class: "rarity-badge", src: picture, alt: rarity, title: rarity })
+        : Object.assign(drawRarityBadge(rarity), { className: "rarity-badge", title: rarity });
     this.element.replaceChildren(
       h("button", { class: "icon-button sheet-close", "aria-label": "Close", onclick: () => this.onClose() }, icon("close")),
       h(
@@ -64,7 +71,7 @@ export class DetailPanel {
             "h3",
             {},
             "Your copy",
-            tag ? h("span", { class: "rarity-chip", text: tag }) : null,
+            badge,
             h("small", { text: `Page ${pageOfSlot(card.slot) + 1} · pocket ${pocketOfSlot(card.slot) + 1}` })
           ),
           copyFields(this.getCatalog(), info, { ...card }, (patch) => {

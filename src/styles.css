@@ -959,3 +959,9 @@ input[type="file"] {
 .swatch-button:hover {
   outline: 2px solid var(--gold-light);
 }
+
+.rarity-badge {
+  height: 22px;
+  width: auto;
+  vertical-align: middle;
+}

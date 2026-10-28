@@ -24,6 +24,7 @@ import {
 } from "./dimensions.ts";
 import { edgeColor, paintCover, paintGlow, paintInside, paintPage, paintWood } from "./paint.ts";
 import { PageSheet } from "./pageSheet.ts";
+import { preloadRarityPictures } from "../model/rarityBadges.ts";
 import { TABLE_Y, TableLayer } from "./tableLayer.ts";
 import type { TableSlot } from "../model/table.ts";
 
@@ -256,6 +257,11 @@ export class BinderScene {
     this.bindPointer();
     window.setTimeout(() => (this.framed = true), 800);
     window.addEventListener("online", () => this.retryImages());
+    // Rarity badge pictures: repaint the pages once they can be drawn.
+    preloadRarityPictures(() => {
+      for (const entry of this.textures.values()) entry.stale = true;
+      this.layout();
+    });
     this.renderer.setAnimationLoop((time: number) => this.frame(time));
   }
 
