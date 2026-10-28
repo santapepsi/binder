@@ -4,6 +4,7 @@ import { Catalog } from "../data/catalog.ts";
 import { loadSettings, type Settings } from "../data/settings.ts";
 import { Store } from "../data/store.ts";
 import { TableStore } from "../data/table.ts";
+import { loadCoverFont } from "../data/coverFont.ts";
 import { openSpotMenu } from "./tableDialogs.ts";
 import { configureImages, persistStorage } from "../data/images.ts";
 import * as db from "../data/db.ts";
@@ -26,7 +27,7 @@ export async function startApp(root: HTMLElement) {
   await table.load();
   // Covers and card faces are drawn on canvases: wait (briefly) for the fonts first.
   await Promise.race([
-    Promise.all(["32px Bia", "900 32px Nunito", "700 32px Nunito"].map((font) => document.fonts.load(font))),
+    Promise.all([...["32px Bia", "900 32px Nunito", "700 32px Nunito"].map((font) => document.fonts.load(font)), loadCoverFont()]),
     new Promise((resolve) => setTimeout(resolve, 1500)),
   ]).catch(() => undefined);
   let settings: Settings = loadSettings();
@@ -205,8 +206,8 @@ export async function startApp(root: HTMLElement) {
   });
 
   const showSync = () => {
-    syncDot.dataset.state = sync.status.state;
-    syncDot.title = describeStatus(sync.status);
+    syncDot.dataset.state = sync.status.state === "synced" && sync.schemaWarning ? "error" : sync.status.state;
+    syncDot.title = sync.schemaWarning ?? describeStatus(sync.status);
   };
   sync.addEventListener("status", showSync);
   showSync();
@@ -250,9 +251,11 @@ export async function startApp(root: HTMLElement) {
   function highlightSpot(id: string, on: boolean) {
     scene.table.highlight(id, on);
   }
+  // Covers are redrawn when the lettering font changes (loaded here or from the account).
+  window.addEventListener("coverfont", () => scene.applyCover());
   scene.setTable(table.slots);
   table.addEventListener("change", () => scene.setTable(table.slots));
   await switchBinder(binder);
   sync.syncNow().catch(() => undefined);
-  return { store, scene, table };
+  return { store, scene, table, sync };
 }

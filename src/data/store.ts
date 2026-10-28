@@ -1,7 +1,7 @@
 // App state: binders and the card copies inside them. Local-first: every change
 // is written to IndexedDB immediately and marked dirty for the account sync.
 
-import { DEFAULT_BINDERS, binderKindFor } from "../model/classify.ts";
+import { DEFAULT_BINDERS, binderKindFor, updatedDefaultColor } from "../model/classify.ts";
 import { firstFreeSlot } from "../model/layout.ts";
 import type { Binder, BinderCard, BinderKind, CardSnapshot } from "../model/types.ts";
 import * as db from "./db.ts";
@@ -23,6 +23,19 @@ export class Store extends EventTarget {
     binders.forEach((binder) => this.binders.set(binder.id, binder));
     cards.forEach((card) => this.cards.set(card.id, card));
     if (!this.liveBinders().length) await this.createDefaults();
+    await this.refreshDefaultColors();
+  }
+
+  /** Binders still on the first version's colours move to the new binder colours. */
+  private async refreshDefaultColors() {
+    const changed: Binder[] = [];
+    for (const binder of this.binders.values()) {
+      const color = updatedDefaultColor(binder);
+      if (!color) continue;
+      Object.assign(binder, { coverColor: color, updatedAt: Date.now(), dirty: true });
+      changed.push(binder);
+    }
+    await db.put("binders", changed);
   }
 
   private async createDefaults() {

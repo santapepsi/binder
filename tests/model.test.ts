@@ -83,3 +83,15 @@ test("table spots: hit test follows the rotation", () => {
   assert.equal(slotContains(spot, 30, 4), false);
   assert.equal(slotContains({ ...spot, rotation: 0 }, 30, 4), true);
 });
+
+import { DEFAULT_BINDERS, updatedDefaultColor } from "../src/model/classify.ts";
+
+test("binders on the old default colours move to the new ones; custom colours stay", () => {
+  assert.equal(updatedDefaultColor({ kind: "monster-xyz", name: "Xyz Monsters", coverColor: "#1d1d22" }), "#1c1c1f");
+  assert.equal(updatedDefaultColor({ kind: "personal", name: "Personal II", coverColor: "#23283a" }), "#eceef1");
+  assert.equal(updatedDefaultColor({ kind: "spell", name: "Spells", coverColor: "#123456" }), null);
+  const colour = (kind: string) => DEFAULT_BINDERS.find((preset) => preset.kind === kind)!.coverColor;
+  assert.equal(colour("monster-link"), colour("monster-ritual"));
+  assert.equal(colour("monster-effect"), colour("monster-normal"));
+  assert.equal(colour("monster-pendulum"), colour("spell"));
+});

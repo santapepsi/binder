@@ -2,7 +2,8 @@
 
 import type { Catalog } from "../data/catalog.ts";
 import { cardBackBlob, type TableStore } from "../data/table.ts";
-import { paintCardBack } from "../three/paint.ts";
+import { COVER_FONT, paintCardBack } from "../three/paint.ts";
+import { coverFontBlob, setCoverFont } from "../data/coverFont.ts";
 import { saveSettings, trimUrl, type Settings } from "../data/settings.ts";
 import type { Sync, SyncStatus } from "../sync/sync.ts";
 import { dialogShell, field, h, openDialog } from "./dom.ts";
@@ -58,7 +59,14 @@ export function openSettings(settings: Settings, sync: Sync, catalog: Catalog, t
   const password = h("input", { type: "password", placeholder: "Password", autocomplete: "current-password" });
   const account = h("div", { class: "account" });
   const status = h("p", { class: "muted", text: describeStatus(sync.status) });
-  sync.addEventListener("status", () => (status.textContent = describeStatus(sync.status)));
+  const warning = h("p", { class: "warning" });
+  const showStatus = () => {
+    status.textContent = describeStatus(sync.status);
+    warning.textContent = sync.schemaWarning ?? "";
+    warning.hidden = !sync.schemaWarning;
+  };
+  sync.addEventListener("status", showStatus);
+  showStatus();
 
   const collect = (): Settings => ({
     supabaseUrl: trimUrl(supabaseUrl.value),
@@ -145,8 +153,47 @@ export function openSettings(settings: Settings, sync: Sync, catalog: Catalog, t
     showBack();
   });
 
+  // Font for the lettering on binder covers.
+  const fontSample = h("p", { class: "font-sample", text: "Normal Monsters" });
+  fontSample.style.fontFamily = COVER_FONT;
+  const fontStatus = h("small", { class: "muted" });
+  const showFont = async () => {
+    fontStatus.textContent = (await coverFontBlob())
+      ? "Using your font. It is kept on this device and in your account, not published with the app."
+      : "Using the app font. Load a .ttf or .otf file to use another one.";
+  };
+  showFont();
+  window.addEventListener("coverfont", showFont);
+  const fontFile = h("input", { type: "file", accept: ".ttf,.otf,.woff,.woff2,font/ttf,font/otf,font/woff,font/woff2" });
+  fontFile.addEventListener("change", async () => {
+    const file = fontFile.files?.[0];
+    if (!file) return;
+    try {
+      await setCoverFont(file);
+    } catch {
+      fontStatus.textContent = "That file is not a font this browser can read.";
+      return;
+    }
+    showFont();
+  });
+  const fontReset = h("button", { class: "button ghost", type: "button", text: "Use the app font" });
+  fontReset.addEventListener("click", async () => {
+    await setCoverFont(null);
+    fontFile.value = "";
+    showFont();
+  });
+
   const dialog = dialogShell(
     "Settings",
+    h(
+      "section",
+      { class: "settings-section" },
+      h("h3", { text: "Cover lettering" }),
+      fontSample,
+      field("Font file", fontFile),
+      fontStatus,
+      h("div", { class: "dialog-actions start" }, fontReset)
+    ),
     h(
       "section",
       { class: "settings-section" },
@@ -166,7 +213,8 @@ export function openSettings(settings: Settings, sync: Sync, catalog: Catalog, t
       h("h3", { text: "Account & sync" }),
       h("div", { class: "field-row" }, field("Supabase URL", supabaseUrl), field("Key", supabaseKey)),
       account,
-      status
+      status,
+      warning
     ),
     h(
       "p",

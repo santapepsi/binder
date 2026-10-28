@@ -923,3 +923,39 @@ input[type="file"] {
   object-fit: cover;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
 }
+
+.font-sample {
+  margin: 8px 0 0;
+  padding: 10px 12px;
+  background: #1c1c1f;
+  color: #fff;
+  font-size: 26px;
+  font-weight: 400;
+}
+
+.warning {
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  border-left: 3px solid var(--gold);
+  background: rgba(201, 162, 74, 0.12);
+  font-size: 14px;
+}
+
+.swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.swatch-button {
+  width: 30px;
+  height: 30px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: var(--swatch);
+  padding: 0;
+}
+
+.swatch-button:hover {
+  outline: 2px solid var(--gold-light);
+}

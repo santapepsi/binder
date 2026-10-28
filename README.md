@@ -9,7 +9,8 @@ Binder 3D para la colección de Yu-Gi-Oh!, en web y Android (APK). Páginas de 9
 - **Páginas infinitas**: siempre queda una página vacía al final.
 - **Cada copia** guarda set y rareza, artwork (si la carta tiene varios), estado, idioma, edición (1st / Unlimited / Limited) y notas. El bolsillo muestra ese artwork con una etiqueta de rareza.
 - **Mover cartas**: arrastrar con el mouse, o mantener pulsado en pantallas táctiles. Mantener la carta en el borde de la página la da vuelta.
-- **Tapas**: color hex o una imagen (JPG, PNG, WebP, GIF).
+- **Tapas** al estilo de los binders de 9 bolsillos: color liso, banda elástica y el nombre abajo a la izquierda (se puede ocultar). Colores por tipo: Xyz negro, Synchro blanco, Link y Ritual azul, Effect y Normal rojo, Pendulum y Spells verde, Fusion violeta, Traps rosa; Personal I negro y Personal II blanco. Se cambian con el selector HEX, los colores rápidos o una imagen.
+- **Letra de la tapa**: en Settings → Cover lettering se carga un archivo de fuente (.ttf/.otf). Queda en el dispositivo y en la cuenta (privado), no se publica con la app.
 - **Sin conexión**: binders, cartas, base de cartas e imágenes quedan guardados en el dispositivo.
 - **Cuenta y sincronización** (opcional) con Supabase.
 

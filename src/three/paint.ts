@@ -72,9 +72,46 @@ const shade = (hex: string, amount: number) => {
   return `rgb(${channel(16)},${channel(8)},${channel(0)})`;
 };
 
-/** Outer face of the front cover: colour or picture, a soft leather grain and a name plate. */
-export function paintCover(color: string, image: ImageBitmap | null, name: string | null): HTMLCanvasElement {
-  const width = 512;
+/** Font family used for the lettering on covers (a font the user loaded, else the app font). */
+export const COVER_FONT = '"CoverLettering", Bia, Nunito, Georgia, serif';
+
+export function luminance(hex: string) {
+  const value = parseInt(hex.replace("#", ""), 16);
+  const channel = (shift: number) => ((value >> shift) & 255) / 255;
+  return 0.2126 * channel(16) + 0.7152 * channel(8) + 0.0722 * channel(0);
+}
+
+/** Horizontal position of the elastic band on the cover, as fractions of its width. */
+export const BAND_FROM = 0.755;
+export const BAND_TO = 0.81;
+
+/** Woven elastic band texture. */
+export function paintBand(color = "#141416"): HTMLCanvasElement {
+  const element = canvas(64, 512);
+  const context = element.getContext("2d")!;
+  context.fillStyle = color;
+  context.fillRect(0, 0, 64, 512);
+  for (let y = 0; y < 512; y += 3) {
+    context.fillStyle = y % 6 ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.25)";
+    context.fillRect(0, y, 64, 1);
+  }
+  const edge = context.createLinearGradient(0, 0, 64, 0);
+  edge.addColorStop(0, "rgba(255,255,255,0.10)");
+  edge.addColorStop(0.15, "rgba(255,255,255,0)");
+  edge.addColorStop(0.85, "rgba(0,0,0,0)");
+  edge.addColorStop(1, "rgba(0,0,0,0.35)");
+  context.fillStyle = edge;
+  context.fillRect(0, 0, 64, 512);
+  return element;
+}
+
+/**
+ * Outer face of the front cover, like a plain 9-pocket binder: one matte colour
+ * (or a picture), the elastic band near the right edge and small lettering at the
+ * bottom left.
+ */
+export function paintCover(color: string, image: ImageBitmap | null, label: string | null): HTMLCanvasElement {
+  const width = 1024;
   const height = Math.round((width * 32) / 26);
   const element = canvas(width, height);
   const context = element.getContext("2d")!;
@@ -86,40 +123,40 @@ export function paintCover(color: string, image: ImageBitmap | null, name: strin
     const h = image.height * scale;
     context.drawImage(image, (width - w) / 2, (height - h) / 2, w, h);
   }
+  // Matte finish: a very fine grain and a soft light from the top left.
   const rand = random(11);
-  for (let index = 0; index < 2600; index++) {
-    context.fillStyle = rand() > 0.5 ? "rgba(255,255,255,0.025)" : "rgba(0,0,0,0.05)";
+  for (let index = 0; index < 9000; index++) {
+    context.fillStyle = rand() > 0.5 ? "rgba(255,255,255,0.018)" : "rgba(0,0,0,0.035)";
     context.fillRect(rand() * width, rand() * height, 2, 2);
   }
-  const vignette = context.createRadialGradient(width / 2, height / 2, width * 0.3, width / 2, height / 2, width * 0.85);
-  vignette.addColorStop(0, "rgba(0,0,0,0)");
-  vignette.addColorStop(1, "rgba(0,0,0,0.35)");
-  context.fillStyle = vignette;
+  const light = context.createLinearGradient(0, 0, width, height);
+  light.addColorStop(0, "rgba(255,255,255,0.07)");
+  light.addColorStop(0.5, "rgba(255,255,255,0)");
+  light.addColorStop(1, "rgba(0,0,0,0.10)");
+  context.fillStyle = light;
   context.fillRect(0, 0, width, height);
-  // stitched border
-  context.setLineDash([10, 7]);
-  context.strokeStyle = "rgba(255,255,255,0.28)";
-  context.lineWidth = 2;
-  context.strokeRect(18, 18, width - 36, height - 36);
-  context.setLineDash([]);
-  if (!name) return element;
-  // name plate
-  const plateW = width * 0.62;
-  const plateX = (width - plateW) / 2;
-  context.fillStyle = "rgba(15,10,8,0.72)";
-  context.beginPath();
-  context.roundRect(plateX, 52, plateW, 64, 10);
-  context.fill();
-  context.strokeStyle = "rgba(230,200,120,0.85)";
-  context.lineWidth = 3;
-  context.stroke();
-  context.fillStyle = "#f3e2b0";
-  context.textAlign = "center";
-  context.textBaseline = "middle";
-  let size = 34;
-  context.font = `900 ${size}px Bia, Nunito, system-ui, sans-serif`;
-  while (context.measureText(name).width > plateW - 30 && size > 14) context.font = `900 ${--size}px Bia, Nunito, system-ui, sans-serif`;
-  context.fillText(name, width / 2, 85);
+  // Soft shadow on both sides of the elastic band (the band itself is a 3D strip).
+  const bandX = width * BAND_FROM;
+  const bandW = width * (BAND_TO - BAND_FROM);
+  const shadow = context.createLinearGradient(bandX - 14, 0, bandX + bandW + 14, 0);
+  shadow.addColorStop(0, "rgba(0,0,0,0)");
+  shadow.addColorStop(0.12, "rgba(0,0,0,0.22)");
+  shadow.addColorStop(0.88, "rgba(0,0,0,0.22)");
+  shadow.addColorStop(1, "rgba(0,0,0,0)");
+  context.fillStyle = shadow;
+  context.fillRect(bandX - 14, 0, bandW + 28, height);
+  context.drawImage(paintBand(), bandX, 0, bandW, height);
+  if (!label) return element;
+  // Lettering where the maker's logo usually is.
+  const dark = !image && luminance(color) > 0.6;
+  context.fillStyle = dark ? "rgba(30,30,32,0.92)" : "rgba(255,255,255,0.92)";
+  context.textAlign = "left";
+  context.textBaseline = "alphabetic";
+  const maxWidth = bandX - width * 0.175 - width * 0.04;
+  let size = Math.round(height * 0.036);
+  context.font = `${size}px ${COVER_FONT}`;
+  while (context.measureText(label).width > maxWidth && size > 18) context.font = `${--size}px ${COVER_FONT}`;
+  context.fillText(label, width * 0.175, height * 0.928);
   return element;
 }
 
@@ -138,7 +175,7 @@ export function paintInside(color: string): HTMLCanvasElement {
 }
 
 export function edgeColor(color: string) {
-  return shade(color, 0.6);
+  return shade(color, 0.82);
 }
 
 /** Yellow glowing frame drawn over the hovered or selected pocket. */

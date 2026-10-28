@@ -6,21 +6,56 @@ export interface BinderPreset {
   coverColor: string;
 }
 
+/** Cover colours of real 9-pocket binders (black, white, blue, red, green, violet, pink). */
+export const BINDER_COLORS = {
+  black: "#1c1c1f",
+  white: "#eceef1",
+  blue: "#1f5fb0",
+  red: "#d21f2d",
+  green: "#1f5b2c",
+  violet: "#8446ad",
+  pink: "#c4285b",
+};
+
 /** The type binders plus two personal ones, created on first launch. */
 export const DEFAULT_BINDERS: BinderPreset[] = [
-  { kind: "monster-normal", name: "Normal Monsters", coverColor: "#8a6a2c" },
-  { kind: "monster-effect", name: "Effect Monsters", coverColor: "#8c4a22" },
-  { kind: "monster-ritual", name: "Ritual Monsters", coverColor: "#284f86" },
-  { kind: "monster-fusion", name: "Fusion Monsters", coverColor: "#5b3277" },
-  { kind: "monster-synchro", name: "Synchro Monsters", coverColor: "#9aa0a8" },
-  { kind: "monster-xyz", name: "Xyz Monsters", coverColor: "#1d1d22" },
-  { kind: "monster-link", name: "Link Monsters", coverColor: "#1f3f6e" },
-  { kind: "monster-pendulum", name: "Pendulum Monsters", coverColor: "#2c6e5e" },
-  { kind: "spell", name: "Spells", coverColor: "#1f6b5a" },
-  { kind: "trap", name: "Traps", coverColor: "#7a2350" },
-  { kind: "personal", name: "Personal I", coverColor: "#3a1820" },
-  { kind: "personal", name: "Personal II", coverColor: "#23283a" },
+  { kind: "monster-normal", name: "Normal Monsters", coverColor: BINDER_COLORS.red },
+  { kind: "monster-effect", name: "Effect Monsters", coverColor: BINDER_COLORS.red },
+  { kind: "monster-ritual", name: "Ritual Monsters", coverColor: BINDER_COLORS.blue },
+  { kind: "monster-fusion", name: "Fusion Monsters", coverColor: BINDER_COLORS.violet },
+  { kind: "monster-synchro", name: "Synchro Monsters", coverColor: BINDER_COLORS.white },
+  { kind: "monster-xyz", name: "Xyz Monsters", coverColor: BINDER_COLORS.black },
+  { kind: "monster-link", name: "Link Monsters", coverColor: BINDER_COLORS.blue },
+  { kind: "monster-pendulum", name: "Pendulum Monsters", coverColor: BINDER_COLORS.green },
+  { kind: "spell", name: "Spells", coverColor: BINDER_COLORS.green },
+  { kind: "trap", name: "Traps", coverColor: BINDER_COLORS.pink },
+  { kind: "personal", name: "Personal I", coverColor: BINDER_COLORS.black },
+  { kind: "personal", name: "Personal II", coverColor: BINDER_COLORS.white },
 ];
+
+/** Colours the first versions gave each binder; binders still using them get the new ones. */
+export const PREVIOUS_DEFAULT_COLORS: Record<string, string> = {
+  "monster-normal": "#8a6a2c",
+  "monster-effect": "#8c4a22",
+  "monster-ritual": "#284f86",
+  "monster-fusion": "#5b3277",
+  "monster-synchro": "#9aa0a8",
+  "monster-xyz": "#1d1d22",
+  "monster-link": "#1f3f6e",
+  "monster-pendulum": "#2c6e5e",
+  spell: "#1f6b5a",
+  trap: "#7a2350",
+  "Personal I": "#3a1820",
+  "Personal II": "#23283a",
+};
+
+/** New default colour for a binder whose colour was never changed by the user, else null. */
+export function updatedDefaultColor(binder: { kind: BinderKind; name: string; coverColor: string }): string | null {
+  const key = binder.kind === "personal" ? binder.name : binder.kind;
+  if (PREVIOUS_DEFAULT_COLORS[key]?.toLowerCase() !== binder.coverColor.toLowerCase()) return null;
+  const preset = DEFAULT_BINDERS.find((entry) => (entry.kind === "personal" ? entry.name === key : entry.kind === key));
+  return preset?.coverColor ?? null;
+}
 
 const has = (card: Pick<CardSnapshot, "subtypes">, word: string) =>
   card.subtypes.some((value) => value.toLowerCase() === word);

@@ -9,6 +9,7 @@ import { coverBlob, saveCover } from "../data/images.ts";
 import type { Store } from "../data/store.ts";
 import { cardBackBlob, type TableStore } from "../data/table.ts";
 import type { TableSlot } from "../model/table.ts";
+import { applyRemoteCoverFont, coverFontBlob, coverFontState, markCoverFontSynced } from "../data/coverFont.ts";
 import { trimUrl, type Settings } from "../data/settings.ts";
 
 interface Session {
@@ -64,6 +65,18 @@ export class Sync extends EventTarget {
   private again = false;
 
   private tableMissing = false;
+  private fontChecked = false;
+  /** Parts of supabase/schema.sql the project does not have yet. */
+  readonly missing = new Set<string>();
+
+  /** What does not sync because the Supabase project needs the latest schema.sql. */
+  get schemaWarning(): string | null {
+    if (!this.missing.size) return null;
+    const parts = [...this.missing].map((part) =>
+      part === "show_name" ? "hiding the name on covers" : part === "binder_tables" ? "cards on the table and the card back" : part
+    );
+    return `Not syncing ${parts.join(" and ")}: run supabase/schema.sql again in your Supabase SQL editor.`;
+  }
 
   constructor(
     private store: Store,
@@ -228,6 +241,7 @@ export class Sync extends EventTarget {
           await this.push();
           await this.pull();
           await this.syncTable();
+          await this.syncCoverFont();
         } while (this.again);
         this.setStatus({ state: "synced", at: Date.now() });
       } catch (error) {
@@ -276,6 +290,7 @@ export class Sync extends EventTarget {
       } catch (error) {
         // Projects created before the "show name" option lack that column: sync without it.
         if (!String(error).includes("show_name")) throw error;
+        this.missing.add("show_name");
         await send(binders.map(toBinderRow).map(({ show_name: _hidden, ...row }) => row));
       }
     }
@@ -351,6 +366,7 @@ export class Sync extends EventTarget {
     } catch (error) {
       if (/binder_tables|PGRST205|404/.test(String(error))) {
         this.tableMissing = true;
+        this.missing.add("binder_tables");
         return;
       }
       throw error;
@@ -384,6 +400,39 @@ export class Sync extends EventTarget {
       body: JSON.stringify([{ user_id: userId, slots: this.table.slots, card_back: cardBack, updated_at: iso(updatedAt) }]),
     });
     await this.table.markPushed(this.table.updatedAt, cardBack);
+  }
+
+  /** Cover lettering font: one private file per account. */
+  private async syncCoverFont() {
+    const path = `${this.session!.user.id}/cover-font`;
+    const { dirty, etag } = await coverFontState();
+    if (dirty) {
+      const blob = await coverFontBlob();
+      await this.ensureToken();
+      if (blob) {
+        await this.uploadStorage(path, blob);
+        const response = await fetch(`${this.base}/storage/v1/object/authenticated/covers/${path}`, { method: "HEAD", headers: this.headers(false) }).catch(() => null);
+        await markCoverFontSynced(response?.headers.get("etag") ?? null);
+      } else {
+        await fetch(`${this.base}/storage/v1/object/covers`, {
+          method: "DELETE",
+          headers: this.headers(),
+          body: JSON.stringify({ prefixes: [path] }),
+        });
+        await markCoverFontSynced(null);
+      }
+      this.fontChecked = true;
+      return;
+    }
+    if (this.fontChecked) return; // once per session is enough for a rarely changed file
+    this.fontChecked = true;
+    await this.ensureToken();
+    const headers: Record<string, string> = this.headers(false);
+    if (etag) headers["If-None-Match"] = etag;
+    const response = await fetch(`${this.base}/storage/v1/object/authenticated/covers/${path}`, { headers }).catch(() => null);
+    if (!response || response.status === 304) return;
+    if (response.ok) await applyRemoteCoverFont(await response.blob(), response.headers.get("etag"));
+    else if ((response.status === 400 || response.status === 404) && (await coverFontBlob())) await applyRemoteCoverFont(null, null);
   }
 
   private async uploadStorage(path: string, blob: Blob) {

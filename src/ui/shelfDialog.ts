@@ -1,5 +1,6 @@
 // Binder shelf: pick a binder, and edit its name and cover (hex colour or picture).
 
+import { BINDER_COLORS } from "../model/classify.ts";
 import { coverImage, deleteCover, saveCover } from "../data/images.ts";
 import type { Store } from "../data/store.ts";
 import type { Binder } from "../model/types.ts";
@@ -111,6 +112,13 @@ export function openBinderEditor(store: Store, binder: Binder, onSaved?: () => v
         field("Name", name),
         h("label", { class: "check" }, showName, h("span", { text: "Show the name on the cover" })),
         field("Cover colour", h("div", { class: "color-row" }, picker, hex)),
+        h(
+          "div",
+          { class: "swatches", role: "group", "aria-label": "Binder colours" },
+          ...Object.entries(BINDER_COLORS).map(([label, value]) =>
+            h("button", { type: "button", class: "swatch-button", title: label, "aria-label": label, style: `--swatch:${value}`, onclick: () => setColor(value) })
+          )
+        ),
         field("Cover picture", file, "JPG, PNG, WebP or GIF. It covers the whole front."),
         removePicture
       )
