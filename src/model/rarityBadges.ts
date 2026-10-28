@@ -25,9 +25,13 @@ import starfoil_rare from "../assets/rarities/starfoil-rare.png";
 import starlight_rare from "../assets/rarities/starlight-rare.png";
 import super_parallel_rare from "../assets/rarities/super-parallel-rare.png";
 import super_rare from "../assets/rarities/super-rare.png";
+import ultra_rare from "../assets/rarities/ultra-rare.png";
+import ultimate_rare from "../assets/rarities/ultimate-rare.png";
 import { rarityTag } from "./classify.ts";
 
 const PICTURES: Record<string, string> = {
+  "ultimate-rare": ultimate_rare,
+  "ultra-rare": ultra_rare,
   "collectors-rare": collectors_rare,
   "common": common,
   "extra-secret-rare": extra_secret_rare,

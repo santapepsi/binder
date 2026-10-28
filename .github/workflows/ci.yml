@@ -5,6 +5,8 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+  schedule:
+    - cron: "17 7 * * *" # daily: refresh the published card database
 
 permissions:
   contents: write
@@ -39,6 +41,8 @@ jobs:
         with:
           name: screenshots
           path: screenshots
+      - name: Card database (published with the web app)
+        run: node scripts/build-card-db.mjs
       - uses: actions/upload-pages-artifact@v3
         if: github.ref == 'refs/heads/main'
         with:
@@ -56,6 +60,7 @@ jobs:
         uses: actions/deploy-pages@v4
 
   android:
+    if: github.event_name != 'schedule'
     needs: web
     runs-on: ubuntu-latest
     steps:

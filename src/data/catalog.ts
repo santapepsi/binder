@@ -8,6 +8,9 @@ import type { Artwork, CardSnapshot, PrintingRef } from "../model/types.ts";
 import * as db from "./db.ts";
 
 const API = "https://db.ygoprodeck.com/api/v7";
+const DEFAULT_SOURCE = `${API}/cardinfo.php`;
+/** Copy of the database published with the web app (see scripts/build-card-db.mjs). */
+const PUBLISHED = "https://santapepsi.github.io/binder/data/";
 const CHECK_EVERY = 24 * 60 * 60 * 1000;
 export const PAGE_SIZE = 40;
 
@@ -121,7 +124,7 @@ export class Catalog {
   private readonly source: string;
 
   /** `source` overrides the database URL (tests and debugging). */
-  constructor(source = `${API}/cardinfo.php`) {
+  constructor(source = DEFAULT_SOURCE) {
     this.source = source;
   }
 
@@ -161,11 +164,39 @@ export class Catalog {
     this.meta = meta;
   }
 
+  /**
+   * Where the database comes from, in order: the copy published with the web
+   * app (same site, so no cross-site rules apply), the same copy on GitHub
+   * Pages (for the Android app and local development), then YGOPRODeck itself.
+   */
+  private sources(): { db: string; version: string | null }[] {
+    if (this.source !== DEFAULT_SOURCE) return [{ db: this.source, version: null }];
+    const list: { db: string; version: string | null }[] = [];
+    if (/^https?:$/.test(location.protocol) && location.hostname !== "localhost") {
+      list.push({ db: new URL("data/cards.json", location.href).href, version: new URL("data/version.json", location.href).href });
+    }
+    list.push({ db: `${PUBLISHED}cards.json`, version: `${PUBLISHED}version.json` });
+    list.push({ db: DEFAULT_SOURCE, version: `${API}/checkDBVer.php` });
+    return list;
+  }
+
+  private async versionAt(url: string | null): Promise<string> {
+    if (!url) return "local";
+    const data = await (await fetch(url, { cache: "no-cache" })).json();
+    if (Array.isArray(data)) return `${data[0]?.database_version ?? "?"} (${data[0]?.last_update ?? ""})`;
+    return String(data.version);
+  }
+
   private async remoteVersion(): Promise<string> {
-    if (this.source !== `${API}/cardinfo.php`) return "local";
-    const response = await fetch(`${API}/checkDBVer.php`);
-    const data = (await response.json()) as { database_version: string; last_update: string }[];
-    return `${data[0]?.database_version ?? "?"} (${data[0]?.last_update ?? ""})`;
+    let lastError: unknown;
+    for (const source of this.sources()) {
+      try {
+        return await this.versionAt(source.version);
+      } catch (error) {
+        lastError = error;
+      }
+    }
+    throw lastError;
   }
 
   async refreshIfChanged(progress?: Progress) {
@@ -176,36 +207,54 @@ export class Catalog {
       await db.put("meta", [{ ...this.meta, cards: this.entries }], ["catalog"]).catch(() => undefined);
       return false;
     }
-    await this.download(progress, version);
+    await this.download(progress);
     return true;
   }
 
-  private async download(progress?: Progress, knownVersion?: string) {
-    const version = knownVersion ?? (await this.remoteVersion().catch(() => "unknown"));
-    progress?.({ phase: "downloading", bytes: 0 });
-    const response = await fetch(this.source);
-    if (!response.ok || !response.body) throw new Error(`The card database answered ${response.status}`);
-    const reader = response.body.getReader();
-    const chunks: Uint8Array[] = [];
-    let bytes = 0;
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      chunks.push(value);
-      bytes += value.length;
-      progress?.({ phase: "downloading", bytes });
+  private async download(progress?: Progress) {
+    const errors: string[] = [];
+    for (const source of this.sources()) {
+      try {
+        progress?.({ phase: "downloading", bytes: 0 });
+        const raw = await this.fetchDatabase(source.db, progress);
+        const version = raw.version ?? (await this.versionAt(source.version).catch(() => "unknown"));
+        const stored: Stored = {
+          version,
+          updatedAt: Date.now(),
+          checkedAt: Date.now(),
+          cards: raw.data.map(normalize),
+        };
+        this.use(stored);
+        await db.put("meta", [stored], ["catalog"]);
+        return;
+      } catch (error) {
+        errors.push(`${new URL(source.db).host}: ${(error as Error).message}`);
+      }
     }
-    progress?.({ phase: "saving", bytes });
-    const text = await new Blob(chunks as BlobPart[]).text();
-    const raw = JSON.parse(text) as { data: RawCard[] };
-    const stored: Stored = {
-      version,
-      updatedAt: Date.now(),
-      checkedAt: Date.now(),
-      cards: raw.data.map(normalize),
-    };
-    this.use(stored);
-    await db.put("meta", [stored], ["catalog"]);
+    throw new Error(`could not download it (${errors.join("; ")})`);
+  }
+
+  private async fetchDatabase(url: string, progress?: Progress): Promise<{ data: RawCard[]; version?: string }> {
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`answered ${response.status}`);
+    let text: string;
+    if (response.body) {
+      const reader = response.body.getReader();
+      const chunks: Uint8Array[] = [];
+      let bytes = 0;
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(value);
+        bytes += value.length;
+        progress?.({ phase: "downloading", bytes });
+      }
+      text = await new Blob(chunks as BlobPart[]).text();
+    } else text = await response.text();
+    progress?.({ phase: "saving" });
+    const raw = JSON.parse(text) as { data: RawCard[]; version?: string };
+    if (!Array.isArray(raw.data) || !raw.data.length) throw new Error("empty database");
+    return raw;
   }
 
   async search(query: string, page: number): Promise<{ items: CatalogHit[]; total: number }> {

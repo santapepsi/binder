@@ -18,7 +18,7 @@ Teclado: ← → pasan página, Inicio / Fin van a la primera / última, Esc des
 
 ## Base de cartas (todas, ~14.600)
 
-La primera vez que agregás una carta, la app descarga de YGOPRODeck la base completa: textos, stats, sets y rarezas, y los artworks de cada carta (unos 20 MB, una sola vez). Queda guardada en el dispositivo, así que buscar funciona sin conexión. Una vez por día, si hay conexión, la app consulta si YGOPRODeck publicó una versión nueva y la actualiza. También se puede actualizar a mano en **Settings → Card database**.
+La primera vez que agregás una carta, la app descarga la base completa (una copia de la de YGOPRODeck que GitHub Actions actualiza cada día y publica junto a la web, en `data/cards.json`; si no está disponible, la pide directo a YGOPRODeck): textos, stats, sets y rarezas, y los artworks de cada carta (unos 20 MB, una sola vez). Queda guardada en el dispositivo, así que buscar funciona sin conexión. Una vez por día, si hay conexión, la app consulta si YGOPRODeck publicó una versión nueva y la actualiza. También se puede actualizar a mano en **Settings → Card database**.
 
 ## Imágenes
 
