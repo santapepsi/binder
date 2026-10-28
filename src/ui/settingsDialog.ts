@@ -1,6 +1,8 @@
 // Settings: the card database on this device, and the account used for sync.
 
 import type { Catalog } from "../data/catalog.ts";
+import { cardBackBlob, saveCardBack } from "../data/table.ts";
+import { paintCardBack } from "../three/paint.ts";
 import { saveSettings, trimUrl, type Settings } from "../data/settings.ts";
 import type { Sync, SyncStatus } from "../sync/sync.ts";
 import { dialogShell, field, h, openDialog } from "./dom.ts";
@@ -120,8 +122,37 @@ export function openSettings(settings: Settings, sync: Sync, catalog: Catalog, o
   renderAccount();
   for (const input of [supabaseUrl, supabaseKey]) input.addEventListener("change", () => (persist(), renderAccount()));
 
+  // Card back used for cards lying face down on the table.
+  const backPreview = h("div", { class: "back-preview" });
+  const showBack = async () => {
+    const blob = await cardBackBlob();
+    if (blob) {
+      const url = URL.createObjectURL(blob);
+      backPreview.replaceChildren(h("img", { src: url, alt: "Card back", onload: () => URL.revokeObjectURL(url) }));
+    } else backPreview.replaceChildren(paintCardBack(160));
+  };
+  showBack();
+  const backFile = h("input", { type: "file", accept: "image/png,image/jpeg,image/webp" });
+  backFile.addEventListener("change", async () => {
+    const file = backFile.files?.[0];
+    if (file) await saveCardBack(file);
+    showBack();
+  });
+  const backReset = h("button", { class: "button ghost", type: "button", text: "Use the default back" });
+  backReset.addEventListener("click", async () => {
+    await saveCardBack(null);
+    backFile.value = "";
+    showBack();
+  });
+
   const dialog = dialogShell(
     "Settings",
+    h(
+      "section",
+      { class: "settings-section" },
+      h("h3", { text: "Card back" }),
+      h("div", { class: "back-row" }, backPreview, h("div", {}, field("Picture for face-down cards", backFile), backReset))
+    ),
     h(
       "section",
       { class: "settings-section" },

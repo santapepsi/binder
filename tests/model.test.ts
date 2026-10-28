@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { binderKindFor, rarityTag, typeLine } from "../src/model/classify.ts";
+import { slotContains } from "../src/model/table.ts";
 import { firstFreeSlot, pageCount, pagesOfSpread, spreadCount, spreadOfPage } from "../src/model/layout.ts";
 
 const card = (cardType: string, subtypes: string[]) => ({ cardType, subtypes });
@@ -73,4 +74,12 @@ test("first free slot", () => {
   assert.equal(firstFreeSlot(new Set()), 0);
   assert.equal(firstFreeSlot(new Set([0, 1, 3])), 2);
   assert.equal(firstFreeSlot(new Set([0, 1, 3]), 3), 4);
+});
+
+test("table spots: hit test follows the rotation", () => {
+  const spot = { id: "a", x: 30, z: 0, rotation: Math.PI / 2, card: null, artworkId: null, faceDown: false };
+  // rotated a quarter turn, the long side lies along x
+  assert.equal(slotContains(spot, 34, 0), true);
+  assert.equal(slotContains(spot, 30, 4), false);
+  assert.equal(slotContains({ ...spot, rotation: 0 }, 30, 4), true);
 });

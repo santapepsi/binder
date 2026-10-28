@@ -86,6 +86,31 @@ await run("desktop", { width: 1440, height: 900 }, async (page) => {
   await shot(page, "07-turning");
   await page.waitForTimeout(900);
   await shot(page, "08-next-spread");
+  // table spots: put a card face up in one and another face down
+  const spots = await page.evaluate(() =>
+    window.binderApp.table.slots.map((slot) => window.binderApp.scene.tableOnScreen(slot.x, slot.z))
+  );
+  const place = async (index, name, faceDown) => {
+    await page.mouse.click(spots[index].x, spots[index].y);
+    await page.click(".spot-menu .button.primary");
+    await page.fill('input[type="search"]', name);
+    await page.waitForTimeout(400);
+    await page.click(".result >> nth=0");
+    if (faceDown) await page.check(".check input");
+    await page.click("text=Put on the table");
+    await page.waitForTimeout(300);
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(500);
+  };
+  await place(4, "Monster Reborn", false);
+  await place(0, "Mirror Force", true);
+  // drag a spot a little
+  await page.mouse.move(spots[5].x, spots[5].y);
+  await page.mouse.down();
+  await page.mouse.move(spots[5].x - 20, spots[5].y + 60, { steps: 8 });
+  await page.mouse.up();
+  await page.waitForTimeout(600);
+  await shot(page, "08c-table-spots");
 });
 
 await run("phone", { width: 412, height: 860 }, async (page) => {

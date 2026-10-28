@@ -3,6 +3,8 @@
 import { Catalog } from "../data/catalog.ts";
 import { loadSettings, type Settings } from "../data/settings.ts";
 import { Store } from "../data/store.ts";
+import { TableStore } from "../data/table.ts";
+import { openSpotMenu } from "./tableDialogs.ts";
 import { configureImages, persistStorage } from "../data/images.ts";
 import * as db from "../data/db.ts";
 import { pagesOfSpread } from "../model/layout.ts";
@@ -20,6 +22,8 @@ const portrait = () => window.innerWidth < 760 || window.innerWidth / window.inn
 export async function startApp(root: HTMLElement) {
   const store = new Store();
   await store.load();
+  const table = new TableStore();
+  await table.load();
   // Covers and card faces are drawn on canvases: wait (briefly) for the fonts first.
   await Promise.race([
     Promise.all(["32px Bia", "900 32px Nunito", "700 32px Nunito"].map((font) => document.fonts.load(font))),
@@ -50,6 +54,20 @@ export async function startApp(root: HTMLElement) {
     h("span", { class: "spacer" }),
     h("button", { class: "button primary add", onclick: () => addCard() }, icon("plus", "Add card")),
     h("button", { class: "icon-button", "aria-label": "Edit binder", onclick: () => openBinderEditor(store, binder) }, icon("edit")),
+    h(
+      "button",
+      {
+        class: "icon-button",
+        "aria-label": "Add a card spot to the table",
+        title: "Add a card spot to the table",
+        onclick: async () => {
+          const spot = await table.add();
+          if (scene.state.focus) scene.setFocus(null);
+          openSpotMenu(table, catalog, spot.id);
+        },
+      },
+      icon("spot")
+    ),
     syncDot,
     h("button", { class: "icon-button", "aria-label": "Settings", onclick: () => settingsDialog() }, icon("gear"))
   );
@@ -90,6 +108,8 @@ export async function startApp(root: HTMLElement) {
       });
     },
     view: (state) => updatePager(state),
+    tableSlot: (id) => openSpotMenu(table, catalog, id),
+    tableMove: (id, x, z) => table.update(id, { x, z }),
   });
   scene.renderer.domElement.setAttribute("aria-label", "3D binder. Use the arrow keys to turn pages.");
   if (portrait()) scene.setFocus("right");
@@ -227,7 +247,9 @@ export async function startApp(root: HTMLElement) {
     wasPortrait = now;
   });
 
+  scene.setTable(table.slots);
+  table.addEventListener("change", () => scene.setTable(table.slots));
   await switchBinder(binder);
   sync.syncNow().catch(() => undefined);
-  return { store, scene };
+  return { store, scene, table };
 }

@@ -286,3 +286,97 @@ export function paintPage(target: HTMLCanvasElement | null, input: PagePainterIn
   }
   return element;
 }
+
+/**
+ * Default back of a card: an original design for this app (deep blue, gold
+ * frame, nine-pocket emblem). Replaceable by a picture in Settings.
+ */
+export function paintCardBack(width = 472): HTMLCanvasElement {
+  const height = Math.round((width * 86) / 59);
+  const element = canvas(width, height);
+  const context = element.getContext("2d")!;
+  const u = width / 59;
+  context.fillStyle = "#14100c";
+  context.fillRect(0, 0, width, height);
+  const field = context.createRadialGradient(width / 2, height / 2, u * 4, width / 2, height / 2, height * 0.7);
+  field.addColorStop(0, "#2d4f86");
+  field.addColorStop(0.55, "#16294d");
+  field.addColorStop(1, "#0a1226");
+  context.fillStyle = field;
+  context.fillRect(u * 2.2, u * 2.2, width - u * 4.4, height - u * 4.4);
+  // fine diagonal pattern
+  context.save();
+  context.beginPath();
+  context.rect(u * 2.2, u * 2.2, width - u * 4.4, height - u * 4.4);
+  context.clip();
+  context.strokeStyle = "rgba(255, 220, 140, 0.07)";
+  context.lineWidth = u * 0.25;
+  for (let offset = -height; offset < width + height; offset += u * 2.2) {
+    context.beginPath();
+    context.moveTo(offset, 0);
+    context.lineTo(offset + height, height);
+    context.moveTo(offset, height);
+    context.lineTo(offset + height, 0);
+    context.stroke();
+  }
+  context.restore();
+  // double gold frame
+  context.strokeStyle = "#d9b45a";
+  context.lineWidth = u * 0.7;
+  context.strokeRect(u * 3.4, u * 3.4, width - u * 6.8, height - u * 6.8);
+  context.lineWidth = u * 0.3;
+  context.strokeRect(u * 4.6, u * 4.6, width - u * 9.2, height - u * 9.2);
+  // emblem: diamond with a 3x3 grid of pockets
+  const cx = width / 2;
+  const cy = height / 2;
+  const r = u * 15;
+  context.save();
+  context.translate(cx, cy);
+  context.beginPath();
+  context.moveTo(0, -r * 1.25);
+  context.lineTo(r, 0);
+  context.lineTo(0, r * 1.25);
+  context.lineTo(-r, 0);
+  context.closePath();
+  const glow = context.createRadialGradient(0, 0, u, 0, 0, r * 1.3);
+  glow.addColorStop(0, "rgba(255, 226, 150, 0.35)");
+  glow.addColorStop(1, "rgba(255, 226, 150, 0.05)");
+  context.fillStyle = glow;
+  context.fill();
+  context.strokeStyle = "#e8c66e";
+  context.lineWidth = u * 0.6;
+  context.stroke();
+  const cell = u * 3.1;
+  const gap = u * 0.8;
+  context.fillStyle = "#e8c66e";
+  for (let row = -1; row <= 1; row++)
+    for (let col = -1; col <= 1; col++)
+      context.fillRect(col * (cell + gap) - cell / 2, row * (cell * 1.35 + gap) - (cell * 1.35) / 2, cell, cell * 1.35);
+  context.restore();
+  // corner ornaments
+  context.fillStyle = "#d9b45a";
+  for (const [x, y] of [
+    [u * 7, u * 7],
+    [width - u * 7, u * 7],
+    [u * 7, height - u * 7],
+    [width - u * 7, height - u * 7],
+  ]) {
+    context.beginPath();
+    context.arc(x, y, u * 1.1, 0, Math.PI * 2);
+    context.fill();
+  }
+  return element;
+}
+
+/** Faint outline marking a card spot on the table. */
+export function paintSpot(): HTMLCanvasElement {
+  const element = canvas(132, 186);
+  const context = element.getContext("2d")!;
+  context.strokeStyle = "rgba(240, 220, 170, 0.55)";
+  context.lineWidth = 4;
+  context.setLineDash([14, 8]);
+  context.strokeRect(6, 6, 120, 174);
+  context.fillStyle = "rgba(0, 0, 0, 0.12)";
+  context.fillRect(8, 8, 116, 170);
+  return element;
+}

@@ -24,6 +24,8 @@ import {
 } from "./dimensions.ts";
 import { edgeColor, paintCover, paintGlow, paintInside, paintPage, paintWood } from "./paint.ts";
 import { PageSheet } from "./pageSheet.ts";
+import { TABLE_Y, TableLayer } from "./tableLayer.ts";
+import { tableReach, type TableSlot } from "../model/table.ts";
 
 export type Focus = "left" | "right" | null;
 
@@ -32,6 +34,10 @@ export interface SceneEvents {
   empty(slot: number): void;
   move(cardId: string, slot: number): void;
   view(state: ViewState): void;
+  /** A table spot was tapped. */
+  tableSlot(id: string): void;
+  /** A table spot was dragged to a new place. */
+  tableMove(id: string, x: number, z: number): void;
 }
 
 export interface ViewState {
@@ -70,6 +76,10 @@ export class BinderScene {
   private readonly cameraGoal = { x: 0, distance: 70 };
   private readonly raycaster = new THREE.Raycaster();
   private readonly pagePlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -PAGE_Y);
+  private readonly tablePlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -TABLE_Y);
+  readonly table: TableLayer;
+  private tableExtent = 0;
+  private slotDrag: { id: string; dx: number; dz: number; x: number; z: number } | null = null;
   private readonly pointer = new THREE.Vector2();
 
   private readonly leftSheet = new PageSheet();
@@ -105,7 +115,7 @@ export class BinderScene {
   private coverTextures: THREE.Texture[] = [];
 
   // pointer state
-  private down: { x: number; y: number; time: number; hit: Hit | null; type: string; id: number } | null = null;
+  private down: { x: number; y: number; time: number; hit: Hit | null; type: string; id: number; spot: TableSlot | null } | null = null;
   private dragging: BinderCard | null = null;
   private longPress = 0;
   private edgeTimer = 0;
@@ -125,6 +135,8 @@ export class BinderScene {
     this.renderer.domElement.style.touchAction = "none";
     container.appendChild(this.renderer.domElement);
     this.anisotropy = Math.min(8, this.renderer.capabilities.getMaxAnisotropy());
+    this.table = new TableLayer(() => (this.needsRender = true), this.anisotropy);
+    this.scene.add(this.table.group);
 
     // Lights
     this.scene.add(new THREE.HemisphereLight(0xfff1e0, 0x3a2016, 1.35));
@@ -304,6 +316,30 @@ export class BinderScene {
 
   private boardMaterials() {
     return Array.from({ length: 6 }, () => new THREE.MeshStandardMaterial({ roughness: 0.7, metalness: 0.02 }));
+  }
+
+  /** Card spots on the table (from the table store). */
+  setTable(slots: TableSlot[]) {
+    this.table.setSlots(slots);
+    const extent = tableReach(slots);
+    if (extent !== this.tableExtent) {
+      this.tableExtent = extent;
+      this.updateCamera();
+    }
+  }
+
+  private tablePoint(clientX: number, clientY: number): THREE.Vector3 | null {
+    const rect = this.renderer.domElement.getBoundingClientRect();
+    this.pointer.set(((clientX - rect.left) / rect.width) * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1);
+    this.raycaster.setFromCamera(this.pointer, this.camera);
+    return this.raycaster.ray.intersectPlane(this.tablePlane, new THREE.Vector3());
+  }
+
+  private startSlotDrag(spot: TableSlot, clientX: number, clientY: number) {
+    const point = this.tablePoint(clientX, clientY);
+    if (!point) return;
+    this.slotDrag = { id: spot.id, dx: spot.x - point.x, dz: spot.z - point.z, x: spot.x, z: spot.z };
+    this.table.preview(spot.id, spot.x, spot.z, 0.5);
   }
 
   select(slot: number | null) {
@@ -610,7 +646,8 @@ export class BinderScene {
     const single = this.focus !== null || this.spread < 0;
     const centre =
       this.spread < 0 ? 0.35 + BOARD_W / 2 : this.focus === "left" ? -(PAGE_GAP + PAGE_W / 2) : this.focus === "right" ? PAGE_GAP + PAGE_W / 2 : 0;
-    const halfWidth = single ? BOARD_W / 2 + 0.6 : 0.35 + BOARD_W + 0.6;
+    // With both pages shown, the card spots on the table are framed too.
+    const halfWidth = single ? BOARD_W / 2 + 0.6 : Math.max(0.35 + BOARD_W + 0.6, this.tableExtent + 0.6);
     const halfDepth = BOARD_H / 2 + 0.4;
     const width = this.container.clientWidth || 1;
     const height = this.container.clientHeight || 1;
@@ -639,6 +676,13 @@ export class BinderScene {
 
   private currentDistance() {
     return this.camera.position.distanceTo(this.cameraTarget);
+  }
+
+  /** Screen position (client px) of a point on the table, for tests. */
+  tableOnScreen(x: number, z: number): { x: number; y: number } {
+    const world = new THREE.Vector3(x, TABLE_Y, z).project(this.camera);
+    const bounds = this.renderer.domElement.getBoundingClientRect();
+    return { x: bounds.left + ((world.x + 1) / 2) * bounds.width, y: bounds.top + ((1 - world.y) / 2) * bounds.height };
   }
 
   /** Screen position (client px) of a pocket centre on the visible spread, for tests and hints. */
@@ -757,7 +801,16 @@ export class BinderScene {
     if (!event.isPrimary || event.button > 0) return;
     this.renderer.domElement.setPointerCapture(event.pointerId);
     const { hit } = this.pick(event.clientX, event.clientY);
-    this.down = { x: event.clientX, y: event.clientY, time: performance.now(), hit, type: event.pointerType, id: event.pointerId };
+    const tablePoint = hit ? null : this.tablePoint(event.clientX, event.clientY);
+    const spot = tablePoint ? this.table.slotAt(tablePoint.x, tablePoint.z) : null;
+    this.down = { x: event.clientX, y: event.clientY, time: performance.now(), hit, type: event.pointerType, id: event.pointerId, spot };
+    if (spot && event.pointerType !== "mouse") {
+      this.longPress = window.setTimeout(() => {
+        navigator.vibrate?.(15);
+        this.startSlotDrag(spot, event.clientX, event.clientY);
+      }, 320);
+      return;
+    }
     const card = hit ? this.cards.get(hit.slot) : undefined;
     if (card && event.pointerType !== "mouse" && !this.busy) {
       this.longPress = window.setTimeout(() => {
@@ -770,6 +823,15 @@ export class BinderScene {
   private onMove(event: PointerEvent) {
     if (!event.isPrimary) return;
     const down = this.down;
+    if (this.slotDrag) {
+      const point = this.tablePoint(event.clientX, event.clientY);
+      if (point) {
+        this.slotDrag.x = point.x + this.slotDrag.dx;
+        this.slotDrag.z = point.z + this.slotDrag.dz;
+        this.table.preview(this.slotDrag.id, this.slotDrag.x, this.slotDrag.z, 0.5);
+      }
+      return;
+    }
     if (this.dragging) {
       this.dragTo(event.clientX, event.clientY);
       return;
@@ -777,13 +839,24 @@ export class BinderScene {
     if (down) {
       const moved = Math.hypot(event.clientX - down.x, event.clientY - down.y);
       if (moved > 10) window.clearTimeout(this.longPress);
+      if (down.spot) {
+        if (down.type === "mouse" && moved > 6) this.startSlotDrag(down.spot, event.clientX, event.clientY);
+        return;
+      }
       if (down.type === "mouse" && moved > 6 && down.hit && !this.busy) {
         const card = this.cards.get(down.hit.slot);
         if (card) this.startDrag(card, event.clientX, event.clientY);
       }
       return;
     }
-    if (event.pointerType === "mouse" && !this.busy) this.setHover(this.pick(event.clientX, event.clientY).hit);
+    if (event.pointerType === "mouse" && !this.busy) {
+      const { hit } = this.pick(event.clientX, event.clientY);
+      this.setHover(hit);
+      if (!hit) {
+        const point = this.tablePoint(event.clientX, event.clientY);
+        if (point && this.table.slotAt(point.x, point.z)) this.renderer.domElement.style.cursor = "grab";
+      }
+    }
   }
 
   private onUp(event: PointerEvent) {
@@ -791,6 +864,16 @@ export class BinderScene {
     const down = this.down;
     this.down = null;
     if (!down || event.pointerId !== down.id) return;
+    if (this.slotDrag) {
+      const { id, x, z } = this.slotDrag;
+      this.slotDrag = null;
+      this.events.tableMove(id, x, z);
+      return;
+    }
+    if (down.spot) {
+      if (Math.hypot(event.clientX - down.x, event.clientY - down.y) <= 12) this.events.tableSlot(down.spot.id);
+      return;
+    }
     if (this.dragging) {
       this.drop(event.clientX, event.clientY);
       return;
@@ -901,6 +984,11 @@ export class BinderScene {
   private cancelDrag() {
     window.clearTimeout(this.longPress);
     this.down = null;
+    if (this.slotDrag) {
+      const { id, x, z } = this.slotDrag;
+      this.slotDrag = null;
+      this.events.tableMove(id, x, z);
+    }
     if (this.dragging) this.endDrag();
   }
 

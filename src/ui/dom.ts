@@ -46,6 +46,7 @@ export const ICONS = {
   cloud: svg(`<path d="M7 18h10a4 4 0 0 0 .5-8A6 6 0 0 0 6 9.5 4.3 4.3 0 0 0 7 18z"/>`),
   search: svg(`<circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/>`),
   back: svg(`<path d="M15 5 8 12l7 7"/>`),
+  spot: svg(`<rect x="4" y="3" width="10" height="14" rx="1" transform="rotate(-12 9 10)"/><path d="M17 13v8M13 17h8"/>`),
 };
 
 // ---------------------------------------------------------------- dialogs
