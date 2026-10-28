@@ -8,11 +8,18 @@ import { frameOf, typeLine } from "../model/classify.ts";
 import type { CardSnapshot } from "../model/types.ts";
 import { dialogShell, field, h, icon, openDialog, select } from "./dom.ts";
 
-export function openSpotMenu(table: TableStore, catalog: Catalog, id: string) {
+export function openSpotMenu(
+  table: TableStore,
+  catalog: Catalog,
+  id: string,
+  highlight: (id: string, on: boolean) => void = () => undefined
+) {
   const slot = table.get(id);
   if (!slot) return;
   const body = h("div", { class: "spot-menu" });
   const dialog = dialogShell("Card on the table", body);
+  highlight(id, true);
+  dialog.addEventListener("close", () => highlight(id, false));
   const turn = (degrees: number) => table.update(id, { rotation: slot.rotation + (degrees * Math.PI) / 180 });
 
   const render = () => {
@@ -50,6 +57,18 @@ export function openSpotMenu(table: TableStore, catalog: Catalog, id: string) {
         current.card
           ? h("button", { class: "button ghost", onclick: () => table.update(id, { card: null, artworkId: null }).then(render) }, "Take card out")
           : null,
+        h(
+          "button",
+          {
+            class: "button ghost",
+            onclick: async () => {
+              const added = await table.add();
+              dialog.close();
+              openSpotMenu(table, catalog, added.id, highlight);
+            },
+          },
+          icon("plus", "Add another spot")
+        ),
         h(
           "button",
           {

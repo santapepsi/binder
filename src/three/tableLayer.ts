@@ -12,9 +12,14 @@ export const TABLE_Y = -0.18;
 
 interface SpotMeshes {
   group: THREE.Group;
-  card: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshStandardMaterial>;
+  outline: THREE.Mesh;
+  card: THREE.Mesh<THREE.BoxGeometry, THREE.MeshStandardMaterial[]>;
   key: string; // what the card currently shows, to avoid reloading
 }
+
+const CARD_T = 0.035; // card thickness, cm
+const FACE = 2; // +y face of the card box
+const UNDERSIDE = 3; // -y face
 
 export class TableLayer {
   readonly group = new THREE.Group();
@@ -22,7 +27,9 @@ export class TableLayer {
   private slots: TableSlot[] = [];
   private readonly outline: THREE.CanvasTexture;
   private back: THREE.Texture;
-  private readonly cardGeometry = new THREE.PlaneGeometry(CARD_W, CARD_H);
+  private readonly cardGeometry = new THREE.BoxGeometry(CARD_W, CARD_T, CARD_H);
+  private readonly edgeMaterial = new THREE.MeshStandardMaterial({ color: 0xe8e2d6, roughness: 0.8 });
+  private highlighted = new Set<string>();
   private readonly outlineGeometry = new THREE.PlaneGeometry(6.6, 9.3);
   private readonly faces = new Map<string, THREE.Texture>();
 
@@ -74,7 +81,8 @@ export class TableLayer {
     for (const [id, spot] of this.spots) {
       if (!alive.has(id)) {
         this.group.remove(spot.group);
-        spot.card.material.dispose();
+        spot.card.material[FACE].dispose();
+        spot.card.material[UNDERSIDE].dispose();
         this.spots.delete(id);
       }
     }
@@ -88,22 +96,40 @@ export class TableLayer {
         );
         outline.rotation.x = -Math.PI / 2;
         outline.position.y = 0.005;
-        outline.receiveShadow = true;
-        const card = new THREE.Mesh(this.cardGeometry, new THREE.MeshStandardMaterial({ roughness: 0.45 }));
-        card.rotation.x = -Math.PI / 2;
-        card.position.y = 0.02;
+        outline.visible = false;
+        // A thin box: printed face on top, card back underneath, pale edges.
+        const materials = [
+          this.edgeMaterial,
+          this.edgeMaterial,
+          new THREE.MeshStandardMaterial({ roughness: 0.42, metalness: 0.02 }),
+          new THREE.MeshStandardMaterial({ roughness: 0.6, map: this.back }),
+          this.edgeMaterial,
+          this.edgeMaterial,
+        ];
+        const card = new THREE.Mesh(this.cardGeometry, materials);
+        card.position.y = 0.01 + CARD_T / 2;
         card.castShadow = true;
         card.receiveShadow = true;
         group.add(outline, card);
         this.group.add(group);
-        spot = { group, card, key: "" };
+        spot = { group, outline, card, key: "" };
         this.spots.set(slot.id, spot);
       }
       spot.group.position.set(slot.x, TABLE_Y, slot.z);
       spot.group.rotation.y = slot.rotation;
       this.showCard(slot, spot);
+      this.updateOutline(slot.id);
     }
     this.onChange();
+  }
+
+  private setFace(spot: SpotMeshes, texture: THREE.Texture) {
+    const top = spot.card.material[FACE];
+    const under = spot.card.material[UNDERSIDE];
+    top.map = texture;
+    under.map = this.back;
+    top.needsUpdate = true;
+    under.needsUpdate = true;
   }
 
   private showCard(slot: TableSlot, spot: SpotMeshes) {
@@ -112,26 +138,41 @@ export class TableLayer {
     spot.key = key;
     spot.card.visible = key !== "empty";
     if (key === "back") {
-      spot.card.material.map = this.back;
-      spot.card.material.needsUpdate = true;
+      this.setFace(spot, this.back);
     } else if (slot.card && key !== "empty") {
       const cached = this.faces.get(key);
-      if (cached) {
-        spot.card.material.map = cached;
-        spot.card.material.needsUpdate = true;
-      } else {
-        spot.card.material.map = this.back; // until the image is ready
-        spot.card.material.needsUpdate = true;
+      if (cached) this.setFace(spot, cached);
+      else {
+        this.setFace(spot, this.back); // until the image is ready
         cardImage(slot.card, "full", slot.artworkId).then((image) => {
           const texture = this.texture(image as HTMLCanvasElement | ImageBitmap);
           if (!("placeholder" in image && image.placeholder)) this.faces.set(key, texture);
           if (spot.key !== key) return;
-          spot.card.material.map = texture;
-          spot.card.material.needsUpdate = true;
+          this.setFace(spot, texture);
           this.onChange();
         });
       }
     }
+  }
+
+  /** The dashed outline shows only on an empty spot that is hovered, dragged or being edited. */
+  highlight(id: string | null, on = true) {
+    if (id === null) {
+      const previous = [...this.highlighted];
+      this.highlighted.clear();
+      previous.forEach((spot) => this.updateOutline(spot));
+    } else {
+      if (on) this.highlighted.add(id);
+      else this.highlighted.delete(id);
+      this.updateOutline(id);
+    }
+    this.onChange();
+  }
+
+  private updateOutline(id: string) {
+    const spot = this.spots.get(id);
+    const slot = this.slots.find((entry) => entry.id === id);
+    if (spot && slot) spot.outline.visible = !slot.card && this.highlighted.has(id);
   }
 
   /** Spot under a table point, topmost first. */

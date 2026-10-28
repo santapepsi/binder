@@ -25,7 +25,7 @@ import {
 import { edgeColor, paintCover, paintGlow, paintInside, paintPage, paintWood } from "./paint.ts";
 import { PageSheet } from "./pageSheet.ts";
 import { TABLE_Y, TableLayer } from "./tableLayer.ts";
-import { tableReach, type TableSlot } from "../model/table.ts";
+import type { TableSlot } from "../model/table.ts";
 
 export type Focus = "left" | "right" | null;
 
@@ -78,8 +78,10 @@ export class BinderScene {
   private readonly pagePlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -PAGE_Y);
   private readonly tablePlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -TABLE_Y);
   readonly table: TableLayer;
-  private tableExtent = 0;
   private slotDrag: { id: string; dx: number; dz: number; x: number; z: number } | null = null;
+  private hoverSpot: string | null = null;
+  private closing = false;
+  private framed = false;
   private readonly pointer = new THREE.Vector2();
 
   private readonly leftSheet = new PageSheet();
@@ -252,6 +254,7 @@ export class BinderScene {
     this.resize();
     new ResizeObserver(() => this.resize()).observe(container);
     this.bindPointer();
+    window.setTimeout(() => (this.framed = true), 800);
     window.addEventListener("online", () => this.retryImages());
     this.renderer.setAnimationLoop((time: number) => this.frame(time));
   }
@@ -321,11 +324,6 @@ export class BinderScene {
   /** Card spots on the table (from the table store). */
   setTable(slots: TableSlot[]) {
     this.table.setSlots(slots);
-    const extent = tableReach(slots);
-    if (extent !== this.tableExtent) {
-      this.tableExtent = extent;
-      this.updateCamera();
-    }
   }
 
   private tablePoint(clientX: number, clientY: number): THREE.Vector3 | null {
@@ -339,6 +337,7 @@ export class BinderScene {
     const point = this.tablePoint(clientX, clientY);
     if (!point) return;
     this.slotDrag = { id: spot.id, dx: spot.x - point.x, dz: spot.z - point.z, x: spot.x, z: spot.z };
+    this.table.highlight(spot.id, true);
     this.table.preview(spot.id, spot.x, spot.z, 0.5);
   }
 
@@ -430,11 +429,15 @@ export class BinderScene {
     this.run(() => {
       this.busy = true;
       this.setHover(null);
+      // Move the camera in while the cover closes, mirroring how it moves out on opening.
+      this.closing = true;
+      this.updateCamera();
       this.animate(0.7, (t) => {
         this.coverAngle = (1 - ease(t)) * Math.PI;
         this.coverPivot.rotation.z = this.coverAngle;
       }, () => {
         this.spread = -1;
+        this.closing = false;
         this.focus = this.focus ? "right" : null;
         this.finishMove();
       });
@@ -639,15 +642,17 @@ export class BinderScene {
     this.camera.aspect = virtualWidth / virtualHeight;
     this.camera.setViewOffset(virtualWidth, virtualHeight, 0, bottom > top ? virtualHeight - height : 0, width, height);
     this.camera.updateProjectionMatrix();
-    this.updateCamera(true);
+    // Only the first framing jumps; later size changes (panels, rotation) glide.
+    this.updateCamera(!this.framed);
   }
 
   private updateCamera(immediate = false) {
-    const single = this.focus !== null || this.spread < 0;
+    const closed = this.spread < 0 || this.closing;
+    const single = this.focus !== null || closed;
     const centre =
-      this.spread < 0 ? 0.35 + BOARD_W / 2 : this.focus === "left" ? -(PAGE_GAP + PAGE_W / 2) : this.focus === "right" ? PAGE_GAP + PAGE_W / 2 : 0;
-    // With both pages shown, the card spots on the table are framed too.
-    const halfWidth = single ? BOARD_W / 2 + 0.6 : Math.max(0.35 + BOARD_W + 0.6, this.tableExtent + 0.6);
+      closed ? 0.35 + BOARD_W / 2 : this.focus === "left" ? -(PAGE_GAP + PAGE_W / 2) : this.focus === "right" ? PAGE_GAP + PAGE_W / 2 : 0;
+    // Framed on the binder only: the card spots on the table show where there is room.
+    const halfWidth = single ? BOARD_W / 2 + 0.6 : 0.35 + BOARD_W + 0.6;
     const halfDepth = BOARD_H / 2 + 0.4;
     const width = this.container.clientWidth || 1;
     const height = this.container.clientHeight || 1;
@@ -852,10 +857,14 @@ export class BinderScene {
     if (event.pointerType === "mouse" && !this.busy) {
       const { hit } = this.pick(event.clientX, event.clientY);
       this.setHover(hit);
-      if (!hit) {
-        const point = this.tablePoint(event.clientX, event.clientY);
-        if (point && this.table.slotAt(point.x, point.z)) this.renderer.domElement.style.cursor = "grab";
+      const point = hit ? null : this.tablePoint(event.clientX, event.clientY);
+      const spot = point ? this.table.slotAt(point.x, point.z) : null;
+      if (spot?.id !== this.hoverSpot) {
+        if (this.hoverSpot) this.table.highlight(this.hoverSpot, false);
+        this.hoverSpot = spot?.id ?? null;
+        if (this.hoverSpot) this.table.highlight(this.hoverSpot, true);
       }
+      if (spot) this.renderer.domElement.style.cursor = "grab";
     }
   }
 
@@ -867,6 +876,7 @@ export class BinderScene {
     if (this.slotDrag) {
       const { id, x, z } = this.slotDrag;
       this.slotDrag = null;
+      if (id !== this.hoverSpot || down.type !== "mouse") this.table.highlight(id, false);
       this.events.tableMove(id, x, z);
       return;
     }

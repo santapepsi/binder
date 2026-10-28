@@ -1,4 +1,5 @@
-// The card spots on the table, saved on this device.
+// The card spots on the table and the card back. Saved on this device and,
+// when signed in, synced with the account (one record per account).
 
 import { defaultTable, type TableSlot } from "../model/table.ts";
 import * as db from "./db.ts";
@@ -7,18 +8,40 @@ import { uuid } from "./store.ts";
 const KEY = "table";
 const BACK_KEY = "cardback";
 
+export interface TableState {
+  slots: TableSlot[];
+  /** Card back picture: null = built-in design, "local-…" = not uploaded yet, else storage path. */
+  cardBack: string | null;
+  updatedAt: number;
+  dirty: boolean;
+}
+
 export class TableStore extends EventTarget {
   slots: TableSlot[] = [];
+  cardBack: string | null = null;
+  updatedAt = 0;
+  dirty = false;
 
   async load() {
-    const saved = await db.get<{ slots: TableSlot[] }>("meta", KEY).catch(() => undefined);
+    const saved = await db.get<Partial<TableState>>("meta", KEY).catch(() => undefined);
     this.slots = saved?.slots ?? defaultTable(uuid);
-    if (!saved) await this.save();
+    this.cardBack = saved?.cardBack ?? null;
+    this.updatedAt = saved?.updatedAt ?? 0; // the untouched default loses to the account's table
+    this.dirty = saved?.dirty ?? false;
+    if (!saved) await this.persist();
   }
 
-  private async save() {
+  private async persist() {
+    const state: TableState = { slots: this.slots, cardBack: this.cardBack, updatedAt: this.updatedAt, dirty: this.dirty };
+    await db.put("meta", [state], [KEY]).catch(() => undefined);
+  }
+
+  /** A local change: saved, marked for sync, announced. */
+  private async changed() {
+    this.updatedAt = Date.now();
+    this.dirty = true;
     this.dispatchEvent(new Event("change"));
-    await db.put("meta", [{ slots: this.slots }], [KEY]).catch(() => undefined);
+    await this.persist();
   }
 
   get(id: string) {
@@ -29,7 +52,7 @@ export class TableStore extends EventTarget {
     const slot = this.get(id);
     if (!slot) return;
     Object.assign(slot, patch);
-    await this.save();
+    await this.changed();
   }
 
   /** New spot next to the binder, on the side with fewer spots. */
@@ -48,24 +71,48 @@ export class TableStore extends EventTarget {
       faceDown: false,
     };
     this.slots.push(slot);
-    await this.save();
+    await this.changed();
     return slot;
   }
 
   async remove(id: string) {
     this.slots = this.slots.filter((slot) => slot.id !== id);
-    await this.save();
+    await this.changed();
+  }
+
+  /** Picture for face-down cards; null returns to the built-in design. */
+  async setCardBack(blob: Blob | null) {
+    if (blob) await db.put("images", [blob], [BACK_KEY]);
+    else await db.remove("images", BACK_KEY).catch(() => undefined);
+    this.cardBack = blob ? `local-${Date.now()}` : null;
+    window.dispatchEvent(new Event("cardback"));
+    await this.changed();
+  }
+
+  // ---- used by the account sync
+
+  /** Takes the account's table (already decided to be newer). */
+  async applyRemote(state: { slots: TableSlot[]; cardBack: string | null; updatedAt: number }, backBlob?: Blob | null) {
+    if (backBlob !== undefined) {
+      if (backBlob) await db.put("images", [backBlob], [BACK_KEY]);
+      else await db.remove("images", BACK_KEY).catch(() => undefined);
+      window.dispatchEvent(new Event("cardback"));
+    }
+    this.slots = state.slots;
+    this.cardBack = state.cardBack;
+    this.updatedAt = state.updatedAt;
+    this.dirty = false;
+    this.dispatchEvent(new Event("change"));
+    await this.persist();
+  }
+
+  async markPushed(updatedAt: number, cardBack: string | null) {
+    this.cardBack = cardBack;
+    if (this.updatedAt === updatedAt) this.dirty = false;
+    await this.persist();
   }
 }
 
-// ---------------------------------------------------------------- card back
-
 export async function cardBackBlob(): Promise<Blob | undefined> {
   return db.get<Blob>("images", BACK_KEY).catch(() => undefined);
-}
-
-export async function saveCardBack(blob: Blob | null) {
-  if (blob) await db.put("images", [blob], [BACK_KEY]);
-  else await db.remove("images", BACK_KEY);
-  window.dispatchEvent(new Event("cardback"));
 }

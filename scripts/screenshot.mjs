@@ -86,10 +86,16 @@ await run("desktop", { width: 1440, height: 900 }, async (page) => {
   await shot(page, "07-turning");
   await page.waitForTimeout(900);
   await shot(page, "08-next-spread");
-  // table spots: put a card face up in one and another face down
-  const spots = await page.evaluate(() =>
-    window.binderApp.table.slots.map((slot) => window.binderApp.scene.tableOnScreen(slot.x, slot.z))
-  );
+  // table spots: bring two right next to the binder (the camera frames the binder),
+  // then put a card face up in one and another face down
+  const spots = await page.evaluate(async () => {
+    const { table, scene } = window.binderApp;
+    const right = table.slots.filter((slot) => slot.x > 0);
+    await table.update(right[0].id, { x: 28.8, z: -9, rotation: 0.2 });
+    await table.update(right[1].id, { x: 28.2, z: -1, rotation: 0 });
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    return table.slots.map((slot) => scene.tableOnScreen(slot.x, slot.z));
+  });
   const place = async (index, name, faceDown) => {
     await page.mouse.click(spots[index].x, spots[index].y);
     await page.click(".spot-menu .button.primary");
@@ -102,12 +108,16 @@ await run("desktop", { width: 1440, height: 900 }, async (page) => {
     await page.keyboard.press("Escape");
     await page.waitForTimeout(500);
   };
-  await place(4, "Monster Reborn", false);
-  await place(0, "Mirror Force", true);
+  // The camera frames the binder: use the spots that are on screen.
+  const visible = spots.map((spot, index) => ({ ...spot, index })).filter((spot) => spot.x > 430 && spot.x < 1435 && spot.y > 80 && spot.y < 800);
+  if (visible.length < 2) throw new Error(`Only ${visible.length} table spots on screen: ${JSON.stringify(spots)}`);
+  await place(visible[0].index, "Monster Reborn", false);
+  await place(visible[1].index, "Mirror Force", true);
   // drag a spot a little
-  await page.mouse.move(spots[5].x, spots[5].y);
+  const last = visible[visible.length - 1];
+  await page.mouse.move(last.x, last.y);
   await page.mouse.down();
-  await page.mouse.move(spots[5].x - 20, spots[5].y + 60, { steps: 8 });
+  await page.mouse.move(last.x - 20, last.y + 60, { steps: 8 });
   await page.mouse.up();
   await page.waitForTimeout(600);
   await shot(page, "08c-table-spots");

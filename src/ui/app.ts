@@ -33,7 +33,7 @@ export async function startApp(root: HTMLElement) {
   // ?debug&catalog=<url> loads a local test database instead of YGOPRODeck.
   const params = new URLSearchParams(location.search);
   const catalog = params.has("debug") && params.get("catalog") ? new Catalog(params.get("catalog")!) : new Catalog();
-  const sync = new Sync(store, settings);
+  const sync = new Sync(store, settings, table);
   configureImages(settings);
   persistStorage();
 
@@ -63,7 +63,7 @@ export async function startApp(root: HTMLElement) {
         onclick: async () => {
           const spot = await table.add();
           if (scene.state.focus) scene.setFocus(null);
-          openSpotMenu(table, catalog, spot.id);
+          openSpotMenu(table, catalog, spot.id, highlightSpot);
         },
       },
       icon("spot")
@@ -108,7 +108,7 @@ export async function startApp(root: HTMLElement) {
       });
     },
     view: (state) => updatePager(state),
-    tableSlot: (id) => openSpotMenu(table, catalog, id),
+    tableSlot: (id) => openSpotMenu(table, catalog, id, highlightSpot),
     tableMove: (id, x, z) => table.update(id, { x, z }),
   });
   scene.renderer.domElement.setAttribute("aria-label", "3D binder. Use the arrow keys to turn pages.");
@@ -179,7 +179,7 @@ export async function startApp(root: HTMLElement) {
   }
 
   function settingsDialog() {
-    openSettings(settings, sync, catalog, (next) => {
+    openSettings(settings, sync, catalog, table, (next) => {
       settings = next;
       sync.configure(settings);
       configureImages(settings);
@@ -247,6 +247,9 @@ export async function startApp(root: HTMLElement) {
     wasPortrait = now;
   });
 
+  function highlightSpot(id: string, on: boolean) {
+    scene.table.highlight(id, on);
+  }
   scene.setTable(table.slots);
   table.addEventListener("change", () => scene.setTable(table.slots));
   await switchBinder(binder);

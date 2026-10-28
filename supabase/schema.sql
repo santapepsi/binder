@@ -85,3 +85,21 @@ create policy "own covers update" on storage.objects for update
 insert into storage.buckets (id, name, public)
 values ('card-images', 'card-images', true)
 on conflict (id) do nothing;
+
+-- Card spots on the table and the card back: one record per account.
+create table if not exists public.binder_tables (
+  user_id uuid primary key default auth.uid() references auth.users (id) on delete cascade,
+  slots jsonb not null default '[]',
+  card_back text,
+  updated_at timestamptz not null,
+  server_updated_at timestamptz not null default now()
+);
+
+drop trigger if exists binder_tables_touch on public.binder_tables;
+create trigger binder_tables_touch before insert or update on public.binder_tables
+  for each row execute function public.touch_server_updated_at();
+
+alter table public.binder_tables enable row level security;
+drop policy if exists "own table" on public.binder_tables;
+create policy "own table" on public.binder_tables
+  for all using (user_id = auth.uid()) with check (user_id = auth.uid());

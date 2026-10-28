@@ -7,6 +7,8 @@ import type { Binder, BinderCard } from "../model/types.ts";
 import * as db from "../data/db.ts";
 import { coverBlob, saveCover } from "../data/images.ts";
 import type { Store } from "../data/store.ts";
+import { cardBackBlob, type TableStore } from "../data/table.ts";
+import type { TableSlot } from "../model/table.ts";
 import { trimUrl, type Settings } from "../data/settings.ts";
 
 interface Session {
@@ -61,9 +63,12 @@ export class Sync extends EventTarget {
   private running: Promise<void> | null = null;
   private again = false;
 
+  private tableMissing = false;
+
   constructor(
     private store: Store,
-    private settings: Settings
+    private settings: Settings,
+    private table: TableStore
   ) {
     super();
     try {
@@ -72,6 +77,7 @@ export class Sync extends EventTarget {
       this.session = null;
     }
     store.addEventListener("change", () => this.schedule());
+    table.addEventListener("change", () => this.table.dirty && this.schedule());
     window.addEventListener("online", () => this.schedule(500));
     window.addEventListener("offline", () => this.setStatus({ state: "offline" }));
     this.refreshStatus();
@@ -221,6 +227,7 @@ export class Sync extends EventTarget {
           await this.pushCovers();
           await this.push();
           await this.pull();
+          await this.syncTable();
         } while (this.again);
         this.setStatus({ state: "synced", at: Date.now() });
       } catch (error) {
@@ -308,6 +315,8 @@ export class Sync extends EventTarget {
     for (const row of binderRows) {
       const remote = fromBinderRow(row);
       const local = this.store.binders.get(row.id);
+      // Projects without the show_name column: keep this device's choice.
+      if (!("show_name" in row)) remote.showName = local?.showName;
       if (local && local.dirty && local.updatedAt > remote.updatedAt) continue;
       if (remote.coverImage && remote.coverImage !== local?.coverImage) await this.downloadCover(remote);
       binders.push(remote);
@@ -327,6 +336,74 @@ export class Sync extends EventTarget {
     );
     const next = binderRows.length || cardRows.length ? Math.max(since, newest - 60_000) : since;
     await db.put("meta", [next], ["lastPull"]);
+  }
+
+  /**
+   * The table (card spots and card back) is one record per account; the newer
+   * side wins. Skipped quietly if the project lacks the binder_tables table.
+   */
+  private async syncTable() {
+    if (this.tableMissing) return;
+    const userId = this.session!.user.id;
+    let rows: { slots: TableSlot[]; card_back: string | null; updated_at: string }[];
+    try {
+      rows = await this.request(`binder_tables?select=slots,card_back,updated_at&user_id=eq.${userId}`);
+    } catch (error) {
+      if (/binder_tables|PGRST205|404/.test(String(error))) {
+        this.tableMissing = true;
+        return;
+      }
+      throw error;
+    }
+    const remote = rows[0];
+    const remoteTime = remote ? Date.parse(remote.updated_at) : -1;
+    if (remote && remoteTime > this.table.updatedAt) {
+      let blob: Blob | null | undefined;
+      if (remote.card_back !== this.table.cardBack) {
+        blob = remote.card_back ? await this.downloadStorage(remote.card_back) : null;
+        if (blob === undefined) return; // retry next time
+      }
+      await this.table.applyRemote({ slots: remote.slots, cardBack: remote.card_back, updatedAt: remoteTime }, blob);
+      return;
+    }
+    if (!this.table.dirty && remote) return;
+    // Push this device's table.
+    let cardBack = this.table.cardBack;
+    if (cardBack?.startsWith(LOCAL_COVER)) {
+      const blob = await cardBackBlob();
+      if (blob) {
+        const path = `${userId}/cardback-${Date.now()}`;
+        await this.uploadStorage(path, blob);
+        cardBack = path;
+      } else cardBack = null;
+    }
+    const updatedAt = this.table.updatedAt || Date.now();
+    await this.request("binder_tables?on_conflict=user_id", {
+      method: "POST",
+      headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
+      body: JSON.stringify([{ user_id: userId, slots: this.table.slots, card_back: cardBack, updated_at: iso(updatedAt) }]),
+    });
+    await this.table.markPushed(this.table.updatedAt, cardBack);
+  }
+
+  private async uploadStorage(path: string, blob: Blob) {
+    await this.ensureToken();
+    const response = await fetch(`${this.base}/storage/v1/object/covers/${path}`, {
+      method: "POST",
+      headers: { ...this.headers(false), "Content-Type": blob.type || "image/jpeg", "x-upsert": "true" },
+      body: blob,
+    });
+    if (!response.ok) throw new Error(`Upload failed (${response.status})`);
+  }
+
+  private async downloadStorage(path: string): Promise<Blob | undefined> {
+    try {
+      await this.ensureToken();
+      const response = await fetch(`${this.base}/storage/v1/object/authenticated/covers/${path}`, { headers: this.headers(false) });
+      return response.ok ? await response.blob() : undefined;
+    } catch {
+      return undefined;
+    }
   }
 
   private async downloadCover(binder: Binder) {

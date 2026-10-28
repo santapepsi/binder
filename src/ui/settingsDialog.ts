@@ -1,7 +1,7 @@
 // Settings: the card database on this device, and the account used for sync.
 
 import type { Catalog } from "../data/catalog.ts";
-import { cardBackBlob, saveCardBack } from "../data/table.ts";
+import { cardBackBlob, type TableStore } from "../data/table.ts";
 import { paintCardBack } from "../three/paint.ts";
 import { saveSettings, trimUrl, type Settings } from "../data/settings.ts";
 import type { Sync, SyncStatus } from "../sync/sync.ts";
@@ -24,7 +24,7 @@ export function describeStatus(status: SyncStatus): string {
   }
 }
 
-export function openSettings(settings: Settings, sync: Sync, catalog: Catalog, onSaved: (settings: Settings) => void) {
+export function openSettings(settings: Settings, sync: Sync, catalog: Catalog, table: TableStore, onSaved: (settings: Settings) => void) {
   const catalogStatus = h("p", { class: "muted" });
   const describeCatalog = () => {
     const info = catalog.info();
@@ -135,12 +135,12 @@ export function openSettings(settings: Settings, sync: Sync, catalog: Catalog, o
   const backFile = h("input", { type: "file", accept: "image/png,image/jpeg,image/webp" });
   backFile.addEventListener("change", async () => {
     const file = backFile.files?.[0];
-    if (file) await saveCardBack(file);
+    if (file) await table.setCardBack(file);
     showBack();
   });
   const backReset = h("button", { class: "button ghost", type: "button", text: "Use the default back" });
   backReset.addEventListener("click", async () => {
-    await saveCardBack(null);
+    await table.setCardBack(null);
     backFile.value = "";
     showBack();
   });

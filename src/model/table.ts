@@ -20,9 +20,9 @@ export const BINDER_EDGE = 25.9;
 export function defaultTable(id: () => string): TableSlot[] {
   const side = (sign: 1 | -1): TableSlot[] =>
     [
-      { x: BINDER_EDGE + 5, z: -8.5, rotation: 0.26 },
-      { x: BINDER_EDGE + 12.5, z: -8, rotation: 0 },
-      { x: BINDER_EDGE + 7.5, z: 6.5, rotation: -0.9 },
+      { x: BINDER_EDGE + 4.5, z: -8.5, rotation: 0.26 },
+      { x: BINDER_EDGE + 11.5, z: -8, rotation: 0 },
+      { x: BINDER_EDGE + 7, z: 6.5, rotation: -0.9 },
     ].map((spot) => ({
       id: id(),
       x: spot.x * sign,
