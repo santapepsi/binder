@@ -70,6 +70,9 @@ const imageKey = (card: BinderCard) => `${card.id}|${card.artworkId ?? ""}`;
 const ease = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 const SPREAD_HALF = PAGE_GAP + PAGE_W;
 
+/** How far the wheel can zoom out, as a multiple of the binder framing. */
+const MAX_ZOOM = 1.5;
+
 export class BinderScene {
   readonly renderer: THREE.WebGLRenderer;
   private readonly scene = new THREE.Scene();
@@ -630,6 +633,8 @@ export class BinderScene {
   // ---------------------------------------------------------------- camera
 
   private insets = { left: 0, top: 0, bottom: 0 };
+  /** Mouse-wheel zoom out: 1 frames the binder, up to MAX_ZOOM shows the table around it. */
+  private zoom = 1;
 
   /** Screen space covered by UI (px), so the binder is framed in the free area. */
   setInsets(insets: { left: number; top: number; bottom: number }) {
@@ -672,7 +677,7 @@ export class BinderScene {
     // The near edge of the binder is closer to the camera, so it needs extra room.
     const horizontal = halfWidth / (tan * (freeWidth / virtualHeight)) + halfDepth * Math.sin(tilt);
     this.cameraGoal.x = centre;
-    this.cameraGoal.distance = Math.max(vertical, horizontal) + 3;
+    this.cameraGoal.distance = (Math.max(vertical, horizontal) + 3) * this.zoom;
     if (immediate) {
       this.cameraTarget.set(centre, 0, 0.6);
       this.placeCamera(this.cameraGoal.distance);
@@ -807,6 +812,19 @@ export class BinderScene {
     canvas.addEventListener("pointercancel", () => this.cancelDrag());
     canvas.addEventListener("pointerleave", (event) => event.pointerType === "mouse" && !this.dragging && this.setHover(null));
     canvas.addEventListener("contextmenu", (event) => event.preventDefault());
+    // Wheel: a little zoom out to reach the cards on the table at the sides, not far.
+    canvas.addEventListener(
+      "wheel",
+      (event) => {
+        event.preventDefault();
+        if (this.dragging) return;
+        const next = THREE.MathUtils.clamp(this.zoom * Math.exp(event.deltaY * 0.0012), 1, MAX_ZOOM);
+        if (next === this.zoom) return;
+        this.zoom = next;
+        this.updateCamera();
+      },
+      { passive: false }
+    );
   }
 
   private onDown(event: PointerEvent) {
