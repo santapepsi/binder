@@ -13,6 +13,8 @@ Binder 3D para la colección de Yu-Gi-Oh!, en web y Android (APK). Páginas de 9
 - **Letra de la tapa**: en Settings → Cover lettering se carga un archivo de fuente (.ttf/.otf). Queda en el dispositivo y en la cuenta (privado), no se publica con la app.
 - **Sin conexión**: binders, cartas, base de cartas e imágenes quedan guardados en el dispositivo.
 - **Cuenta y sincronización** (opcional) con Supabase.
+- **Deckboxes**: desde el menú de arriba a la izquierda (Binders / Deckboxes) se crean mazos. El editor imita la pantalla de mazos de Tag Force: pestañas Deck, Extra, Side y Binders (todas las cartas de todos los binders y de la mesa). Máximo 3 copias por carta y no más de las que tenés; Fusion, Synchro, Xyz y Link van al Extra solas. Se exportan como .ydk y se sincronizan con la cuenta.
+- **Stickers de rareza**: se muestran u ocultan todos con el botón de la barra, o de a uno desde el panel de la carta.
 
 Teclado: ← → pasan página, Inicio / Fin van a la primera / última, Esc deselecciona.
 

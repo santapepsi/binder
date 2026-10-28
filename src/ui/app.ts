@@ -16,7 +16,10 @@ import { openAddCard } from "./addCardDialog.ts";
 import { DetailPanel } from "./detailPanel.ts";
 import { h, icon, toast } from "./dom.ts";
 import { describeStatus, openSettings } from "./settingsDialog.ts";
-import { openBinderEditor, openShelf } from "./shelfDialog.ts";
+import { openBinderEditor } from "./shelfDialog.ts";
+import { DeckStore, type Deck } from "../data/decks.ts";
+import { DeckView } from "./deckView.ts";
+import { closeMenu, toggleMenu } from "./menu.ts";
 
 const portrait = () => window.innerWidth < 760 || window.innerWidth / window.innerHeight < 0.9;
 
@@ -25,6 +28,8 @@ export async function startApp(root: HTMLElement) {
   await store.load();
   const table = new TableStore();
   await table.load();
+  const decks = new DeckStore();
+  await decks.load();
   // Covers and card faces are drawn on canvases: wait (briefly) for the fonts first.
   await Promise.race([
     Promise.all([...["32px Bia", "900 32px Nunito", "700 32px Nunito"].map((font) => document.fonts.load(font)), loadCoverFont()]),
@@ -35,6 +40,7 @@ export async function startApp(root: HTMLElement) {
   const params = new URLSearchParams(location.search);
   const catalog = params.has("debug") && params.get("catalog") ? new Catalog(params.get("catalog")!) : new Catalog();
   const sync = new Sync(store, settings, table);
+  sync.attachDecks(decks);
   configureImages(settings);
   persistStorage();
 
@@ -43,18 +49,48 @@ export async function startApp(root: HTMLElement) {
   if (binder.deleted) binder = store.liveBinders()[0];
 
   // ---- layout
-  const title = h("button", { class: "title-button", onclick: () => openShelf(store, binder.id, switchBinder) });
+  let mode: "binder" | "deck" = "binder";
+  const menuButton = h("button", { class: "icon-button menu-button", "aria-label": "Binders and deckboxes", "aria-haspopup": "menu" }, icon("shelf"));
+  const openNavigation = () =>
+    toggleMenu({
+      anchor: menuButton,
+      store,
+      decks,
+      current: { binder: mode === "binder" ? binder.id : null, deck: mode === "deck" ? deckView.current?.id ?? null : null },
+      open: mode === "deck" ? "deckboxes" : "binders",
+      onBinder: (next) => {
+        showBinders();
+        switchBinder(next);
+      },
+      onDeck: (deck) => showDeck(deck),
+    });
+  menuButton.addEventListener("click", openNavigation);
+  const title = h("button", { class: "title-button", onclick: openNavigation });
   const summary = h("span", { class: "summary" });
   const syncDot = h("button", { class: "icon-button sync-dot", "aria-label": "Sync status", onclick: () => settingsDialog() }, icon("cloud"));
   const header = h(
     "header",
     { class: "topbar panel" },
-    h("button", { class: "icon-button", "aria-label": "Binders", onclick: () => openShelf(store, binder.id, switchBinder) }, icon("shelf")),
+    menuButton,
     title,
     summary,
     h("span", { class: "spacer" }),
     h("button", { class: "button primary add", onclick: () => addCard() }, icon("plus", "Add card")),
     h("button", { class: "icon-button", "aria-label": "Edit binder", onclick: () => openBinderEditor(store, binder) }, icon("edit")),
+    h(
+      "button",
+      {
+        class: "icon-button",
+        "aria-label": "Show or hide all rarity stickers",
+        title: "Show or hide all rarity stickers",
+        onclick: async () => {
+          const show = !store.anyBadgeVisible();
+          await store.setAllBadges(show);
+          toast(show ? "Rarity stickers shown on every card." : "Rarity stickers hidden on every card.");
+        },
+      },
+      icon("sticker")
+    ),
     h(
       "button",
       {
@@ -96,7 +132,25 @@ export async function startApp(root: HTMLElement) {
     scene.select(null);
     detail.show(null, binder);
   });
-  root.append(h("div", { class: "layout" }, header, detail.element, stage));
+  const deckView = new DeckView(store, table, decks, () => showBinders());
+  root.append(h("div", { class: "layout" }, header, detail.element, stage, deckView.element));
+
+  function showDeck(deck: Deck) {
+    mode = "deck";
+    closeMenu();
+    document.body.classList.add("deck-mode");
+    deckView.open(deck);
+    refreshHeader();
+  }
+
+  function showBinders() {
+    if (mode === "binder") return;
+    mode = "binder";
+    deckView.close();
+    document.body.classList.remove("deck-mode");
+    refreshHeader();
+  }
+  decks.addEventListener("change", () => mode === "deck" && refreshHeader());
 
   // ---- scene
   const scene = new BinderScene(stage, {
@@ -116,6 +170,12 @@ export async function startApp(root: HTMLElement) {
   if (portrait()) scene.setFocus("right");
 
   const refreshHeader = () => {
+    const deck = mode === "deck" ? deckView.current : null;
+    if (deck) {
+      title.replaceChildren(h("span", { text: deck.name }), h("span", { class: "caret", text: "▾" }));
+      summary.textContent = `Deck ${deck.main.length} · Extra ${deck.extra.length} · Side ${deck.side.length}`;
+      return;
+    }
     title.replaceChildren(h("span", { text: binder.name }), h("span", { class: "caret", text: "▾" }));
     const cards = store.cardsOf(binder.id).length;
     summary.textContent = `${cards} card${cards === 1 ? "" : "s"}`;
@@ -213,7 +273,7 @@ export async function startApp(root: HTMLElement) {
   showSync();
 
   window.addEventListener("keydown", (event) => {
-    if (document.querySelector("dialog[open]")) return;
+    if (document.querySelector("dialog[open]") || mode === "deck") return;
     const target = event.target as HTMLElement;
     if (target.matches("input, textarea, select")) return;
     if (event.key === "ArrowRight") scene.next();
@@ -257,5 +317,5 @@ export async function startApp(root: HTMLElement) {
   table.addEventListener("change", () => scene.setTable(table.slots));
   await switchBinder(binder);
   sync.syncNow().catch(() => undefined);
-  return { store, scene, table, sync };
+  return { store, scene, table, sync, decks, deckView };
 }

@@ -51,7 +51,8 @@ export class TableStore extends EventTarget {
   async update(id: string, patch: Partial<Omit<TableSlot, "id">>) {
     const slot = this.get(id);
     if (!slot) return;
-    Object.assign(slot, patch);
+    // Moving or changing a card puts it on top of the others.
+    Object.assign(slot, patch, { order: Date.now() });
     await this.changed();
   }
 
@@ -69,6 +70,7 @@ export class TableStore extends EventTarget {
       card: null,
       artworkId: null,
       faceDown: false,
+      order: Date.now(),
     };
     this.slots.push(slot);
     await this.changed();

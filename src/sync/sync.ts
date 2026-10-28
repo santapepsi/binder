@@ -8,6 +8,7 @@ import * as db from "../data/db.ts";
 import { coverBlob, saveCover } from "../data/images.ts";
 import type { Store } from "../data/store.ts";
 import { cardBackBlob, type TableStore } from "../data/table.ts";
+import type { Deck, DeckStore } from "../data/decks.ts";
 import type { TableSlot } from "../model/table.ts";
 import { applyRemoteCoverFont, coverFontBlob, coverFontState, markCoverFontSynced } from "../data/coverFont.ts";
 import { trimUrl, type Settings } from "../data/settings.ts";
@@ -66,6 +67,14 @@ export class Sync extends EventTarget {
 
   private tableMissing = false;
   private fontChecked = false;
+  private decks: DeckStore | null = null;
+  private decksEtag: string | null = null;
+
+  /** Decks sync as one private file in the account's storage (no extra tables needed). */
+  attachDecks(decks: DeckStore) {
+    this.decks = decks;
+    decks.addEventListener("change", () => decks.dirty && this.schedule());
+  }
   /** Parts of supabase/schema.sql the project does not have yet. */
   readonly missing = new Set<string>();
 
@@ -242,6 +251,7 @@ export class Sync extends EventTarget {
           await this.pull();
           await this.syncTable();
           await this.syncCoverFont();
+          await this.syncDecks();
         } while (this.again);
         this.setStatus({ state: "synced", at: Date.now() });
       } catch (error) {
@@ -400,6 +410,27 @@ export class Sync extends EventTarget {
       body: JSON.stringify([{ user_id: userId, slots: this.table.slots, card_back: cardBack, updated_at: iso(updatedAt) }]),
     });
     await this.table.markPushed(this.table.updatedAt, cardBack);
+  }
+
+  private async syncDecks() {
+    if (!this.decks) return;
+    const path = `${this.session!.user.id}/decks.json`;
+    await this.ensureToken();
+    const headers: Record<string, string> = this.headers(false);
+    if (this.decksEtag) headers["If-None-Match"] = this.decksEtag;
+    const response = await fetch(`${this.base}/storage/v1/object/authenticated/covers/${path}`, { headers, cache: "no-store" }).catch(() => null);
+    if (response?.ok) {
+      const remote = (await response.json().catch(() => null)) as { decks?: Deck[] } | null;
+      this.decksEtag = response.headers.get("etag");
+      if (remote?.decks) await this.decks.merge(remote.decks);
+    } else if (response && response.status !== 304 && response.status !== 400 && response.status !== 404) {
+      throw new Error(`Decks download failed (${response.status})`);
+    }
+    if (!this.decks.dirty) return;
+    const body = new Blob([JSON.stringify({ decks: this.decks.decks, updatedAt: this.decks.updatedAt })], { type: "application/json" });
+    await this.uploadStorage(path, body);
+    this.decksEtag = null; // fetch the new version next time
+    await this.decks.markPushed();
   }
 
   /** Cover lettering font: one private file per account. */

@@ -153,6 +153,26 @@ export class Store extends EventTarget {
     this.emit([card.binderId]);
   }
 
+  /** Shows or hides the rarity sticker of every copy in every binder. */
+  async setAllBadges(visible: boolean) {
+    const changed: BinderCard[] = [];
+    const now = Date.now();
+    for (const card of this.cards.values()) {
+      if (card.deleted || !card.printing || !card.printing.hideBadge === visible) continue;
+      card.printing = { ...card.printing, hideBadge: !visible };
+      Object.assign(card, { updatedAt: now, dirty: true });
+      changed.push(card);
+    }
+    await db.put("cards", changed);
+    this.emit([...new Set(changed.map((card) => card.binderId))]);
+  }
+
+  /** True when at least one copy with a rarity shows its sticker. */
+  anyBadgeVisible(): boolean {
+    for (const card of this.cards.values()) if (!card.deleted && card.printing && !card.printing.hideBadge) return true;
+    return false;
+  }
+
   async updateBinder(id: string, patch: Partial<Pick<Binder, "name" | "coverColor" | "coverImage" | "showName">>) {
     const binder = this.binders.get(id);
     if (!binder) return;

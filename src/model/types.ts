@@ -64,6 +64,8 @@ export interface PrintingRef {
   code: string; // e.g. LOB-EN001
   setName: string;
   rarity: string;
+  /** Hide this copy's rarity sticker on the pocket. */
+  hideBadge?: boolean;
 }
 
 export type Condition = "Mint" | "Near Mint" | "Excellent" | "Good" | "Light Played" | "Played" | "Poor";

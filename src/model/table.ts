@@ -11,6 +11,8 @@ export interface TableSlot {
   card: CardSnapshot | null;
   artworkId: string | null;
   faceDown: boolean;
+  /** Stacking order: the card moved or changed last lies on top. */
+  order?: number;
 }
 
 /** Outer edge of the open binder's boards, in cm from the rings. */

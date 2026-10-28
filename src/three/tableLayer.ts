@@ -18,6 +18,7 @@ interface SpotMeshes {
 }
 
 const CARD_T = 0.035; // card thickness, cm
+const LAYER = 0.06; // height between stacked cards
 const FACE = 2; // +y face of the card box
 const UNDERSIDE = 3; // -y face
 
@@ -75,8 +76,17 @@ export class TableLayer {
     this.setSlots(this.slots);
   }
 
+  /** Position of a spot in the stack (0 = bottom), from its order. */
+  private layerOf(id: string) {
+    return this.stack.indexOf(id);
+  }
+
+  private stack: string[] = [];
+
   setSlots(slots: TableSlot[]) {
     this.slots = slots;
+    // Distinct heights per card so overlapping cards never fight for the same depth.
+    this.stack = [...slots].sort((a, b) => (a.order ?? 0) - (b.order ?? 0)).map((slot) => slot.id);
     const alive = new Set(slots.map((slot) => slot.id));
     for (const [id, spot] of this.spots) {
       if (!alive.has(id)) {
@@ -115,7 +125,7 @@ export class TableLayer {
         spot = { group, outline, card, key: "" };
         this.spots.set(slot.id, spot);
       }
-      spot.group.position.set(slot.x, TABLE_Y, slot.z);
+      spot.group.position.set(slot.x, TABLE_Y + this.layerOf(slot.id) * LAYER, slot.z);
       spot.group.rotation.y = slot.rotation;
       this.showCard(slot, spot);
       this.updateOutline(slot.id);
@@ -177,8 +187,9 @@ export class TableLayer {
 
   /** Spot under a table point, topmost first. */
   slotAt(x: number, z: number): TableSlot | null {
-    for (let index = this.slots.length - 1; index >= 0; index--) {
-      if (slotContains(this.slots[index], x, z)) return this.slots[index];
+    for (let index = this.stack.length - 1; index >= 0; index--) {
+      const slot = this.slots.find((entry) => entry.id === this.stack[index]);
+      if (slot && slotContains(slot, x, z)) return slot;
     }
     return null;
   }
@@ -187,7 +198,7 @@ export class TableLayer {
   preview(id: string, x: number, z: number, lift: number) {
     const spot = this.spots.get(id);
     if (!spot) return;
-    spot.group.position.set(x, TABLE_Y + lift, z);
+    spot.group.position.set(x, TABLE_Y + Math.max(lift, (this.stack.length + 1) * LAYER), z);
     this.onChange();
   }
 }

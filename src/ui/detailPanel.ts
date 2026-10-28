@@ -74,8 +74,29 @@ export class DetailPanel {
             badge,
             h("small", { text: `Page ${pageOfSlot(card.slot) + 1} · pocket ${pocketOfSlot(card.slot) + 1}` })
           ),
+          card.printing
+            ? h(
+                "label",
+                { class: "check" },
+                h("input", {
+                  type: "checkbox",
+                  checked: !card.printing.hideBadge,
+                  onchange: (event: Event) => {
+                    const current = this.store.cards.get(card.id);
+                    if (!current?.printing) return;
+                    const hideBadge = !(event.target as HTMLInputElement).checked;
+                    this.store.updateCard(card.id, { printing: { ...current.printing, hideBadge } });
+                  },
+                }),
+                h("span", { text: "Show the rarity sticker on the pocket" })
+              )
+            : null,
           copyFields(this.getCatalog(), info, { ...card }, (patch) => {
             this.store.updateCard(card.id, patch);
+            if ("printing" in patch) {
+              const updated = this.store.cards.get(card.id);
+              if (updated) this.show(updated, binder);
+            }
             if ("artworkId" in patch) {
               prefetchCard(info, patch.artworkId).catch(() => undefined);
               const updated = this.store.cards.get(card.id);

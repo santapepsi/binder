@@ -236,7 +236,7 @@ export function paintPage(target: HTMLCanvasElement | null, input: PagePainterIn
         lines.forEach((line, index) => context.fillText(line, (cr.x + cr.w / 2) * s, top + index * lineHeight));
       }
       context.restore();
-      const badge = rarityBadge(card.printing?.rarity);
+      const badge = card.printing?.hideBadge ? null : rarityBadge(card.printing?.rarity);
       if (badge) {
         const bw = Number((badge as HTMLImageElement).naturalWidth || (badge as HTMLCanvasElement).width);
         const bh = Number((badge as HTMLImageElement).naturalHeight || (badge as HTMLCanvasElement).height);
