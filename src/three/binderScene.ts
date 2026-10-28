@@ -22,7 +22,7 @@ import {
   pocketAt,
   pocketRect,
 } from "./dimensions.ts";
-import { BAND_FROM, BAND_TO, edgeColor, paintBand, paintCover, paintGlow, paintInside, paintPage, paintWood } from "./paint.ts";
+import { edgeColor, paintCover, paintGlow, paintInside, paintPage, paintWood } from "./paint.ts";
 import { PageSheet } from "./pageSheet.ts";
 import { TABLE_Y, TableLayer } from "./tableLayer.ts";
 import type { TableSlot } from "../model/table.ts";
@@ -175,18 +175,6 @@ export class BinderScene {
     this.frontBoard.position.set(0.35 + BOARD_W / 2, HINGE_Y, 0);
     this.coverPivot.position.set(0, HINGE_Y, 0);
     this.coverPivot.add(this.frontBoard);
-    // Elastic band across the front cover.
-    const bandTexture = new THREE.CanvasTexture(paintBand());
-    bandTexture.colorSpace = THREE.SRGBColorSpace;
-    const bandWidth = BOARD_W * (BAND_TO - BAND_FROM);
-    const band = new THREE.Mesh(
-      new THREE.BoxGeometry(bandWidth, 0.06, BOARD_H + 0.04),
-      new THREE.MeshStandardMaterial({ map: bandTexture, roughness: 0.85 })
-    );
-    // On the outer face only (+y while closed), so the inside of the cover stays clean.
-    band.position.set(-BOARD_W / 2 + BOARD_W * ((BAND_FROM + BAND_TO) / 2), BOARD_T / 2 + 0.03, 0);
-    band.castShadow = true;
-    this.frontBoard.add(band);
     this.spineBoard = new THREE.Mesh(new THREE.BoxGeometry(2.4, BOARD_T * 0.9, BOARD_H), this.boardMaterials());
     this.spineBoard.position.set(0, -0.015, 0);
     for (const mesh of [this.backBoard, this.frontBoard, this.spineBoard]) {

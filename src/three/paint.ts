@@ -81,34 +81,9 @@ export function luminance(hex: string) {
   return 0.2126 * channel(16) + 0.7152 * channel(8) + 0.0722 * channel(0);
 }
 
-/** Horizontal position of the elastic band on the cover, as fractions of its width. */
-export const BAND_FROM = 0.755;
-export const BAND_TO = 0.81;
-
-/** Woven elastic band texture. */
-export function paintBand(color = "#141416"): HTMLCanvasElement {
-  const element = canvas(64, 512);
-  const context = element.getContext("2d")!;
-  context.fillStyle = color;
-  context.fillRect(0, 0, 64, 512);
-  for (let y = 0; y < 512; y += 3) {
-    context.fillStyle = y % 6 ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.25)";
-    context.fillRect(0, y, 64, 1);
-  }
-  const edge = context.createLinearGradient(0, 0, 64, 0);
-  edge.addColorStop(0, "rgba(255,255,255,0.10)");
-  edge.addColorStop(0.15, "rgba(255,255,255,0)");
-  edge.addColorStop(0.85, "rgba(0,0,0,0)");
-  edge.addColorStop(1, "rgba(0,0,0,0.35)");
-  context.fillStyle = edge;
-  context.fillRect(0, 0, 64, 512);
-  return element;
-}
-
 /**
  * Outer face of the front cover, like a plain 9-pocket binder: one matte colour
- * (or a picture), the elastic band near the right edge and small lettering at the
- * bottom left.
+ * (or a picture) and small lettering at the bottom left.
  */
 export function paintCover(color: string, image: ImageBitmap | null, label: string | null): HTMLCanvasElement {
   const width = 1024;
@@ -135,24 +110,13 @@ export function paintCover(color: string, image: ImageBitmap | null, label: stri
   light.addColorStop(1, "rgba(0,0,0,0.10)");
   context.fillStyle = light;
   context.fillRect(0, 0, width, height);
-  // Soft shadow on both sides of the elastic band (the band itself is a 3D strip).
-  const bandX = width * BAND_FROM;
-  const bandW = width * (BAND_TO - BAND_FROM);
-  const shadow = context.createLinearGradient(bandX - 14, 0, bandX + bandW + 14, 0);
-  shadow.addColorStop(0, "rgba(0,0,0,0)");
-  shadow.addColorStop(0.12, "rgba(0,0,0,0.22)");
-  shadow.addColorStop(0.88, "rgba(0,0,0,0.22)");
-  shadow.addColorStop(1, "rgba(0,0,0,0)");
-  context.fillStyle = shadow;
-  context.fillRect(bandX - 14, 0, bandW + 28, height);
-  context.drawImage(paintBand(), bandX, 0, bandW, height);
   if (!label) return element;
   // Lettering where the maker's logo usually is.
   const dark = !image && luminance(color) > 0.6;
   context.fillStyle = dark ? "rgba(30,30,32,0.92)" : "rgba(255,255,255,0.92)";
   context.textAlign = "left";
   context.textBaseline = "alphabetic";
-  const maxWidth = bandX - width * 0.175 - width * 0.04;
+  const maxWidth = width * 0.6;
   let size = Math.round(height * 0.036);
   context.font = `${size}px ${COVER_FONT}`;
   while (context.measureText(label).width > maxWidth && size > 18) context.font = `${--size}px ${COVER_FONT}`;
