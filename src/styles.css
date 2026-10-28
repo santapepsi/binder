@@ -460,7 +460,7 @@ button {
   width: 100%;
   aspect-ratio: 26 / 32;
   border-radius: 6px;
-  background: linear-gradient(135deg, color-mix(in srgb, var(--cover) 100%, white 12%), var(--cover));
+  background: var(--cover-bg, linear-gradient(135deg, color-mix(in srgb, var(--cover) 100%, white 12%), var(--cover)));
   box-shadow: 0 8px 18px rgba(0, 0, 0, 0.5), inset 0 0 0 2px rgba(255, 255, 255, 0.15);
 }
 
@@ -706,7 +706,7 @@ input[type="file"] {
   height: 42px;
   border-radius: 3px;
   overflow: hidden;
-  background: var(--cover);
+  background: var(--cover-bg, var(--cover));
   box-shadow: inset 4px 0 0 rgba(0, 0, 0, 0.3), 0 2px 6px rgba(0, 0, 0, 0.5);
 }
 
@@ -737,7 +737,7 @@ input[type="file"] {
   aspect-ratio: 26 / 32;
   border-radius: 6px;
   overflow: hidden;
-  background: var(--cover);
+  background: var(--cover-bg, var(--cover));
   box-shadow: inset 6px 0 0 rgba(0, 0, 0, 0.3), 0 8px 18px rgba(0, 0, 0, 0.5);
 }
 
@@ -1216,7 +1216,7 @@ input[type="file"] {
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: 34px 1fr;
+  grid-template-columns: 48px 1fr;
   gap: 4px;
   padding: 6px;
   overflow-y: auto;
@@ -1232,15 +1232,46 @@ input[type="file"] {
 }
 
 .deck-rows span {
-  display: grid;
-  place-items: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   align-self: stretch;
+  gap: 2px;
   background: #4a4a4a;
   color: #fff;
   font-weight: 900;
-  border-radius: 2px;
-  font-variant-numeric: tabular-nums;
+  border-left: 5px solid var(--frame, #777);
+  line-height: 1.1;
 }
+
+.deck-rows span b {
+  font-size: 18px;
+}
+
+.deck-rows span small {
+  font-size: 9px;
+  font-weight: 700;
+  opacity: 0.8;
+  letter-spacing: 0.02em;
+}
+
+.deck-rows span.empty {
+  background: rgba(74, 74, 74, 0.45);
+  border-left-color: transparent;
+}
+
+.deck-rows .frame-normal { --frame: #d8b24a; }
+.deck-rows .frame-effect { --frame: #c9763a; }
+.deck-rows .frame-ritual { --frame: #4d7fd0; }
+.deck-rows .frame-fusion { --frame: #9a5bd0; }
+.deck-rows .frame-synchro { --frame: #e8e8e8; }
+.deck-rows .frame-xyz { --frame: #222; }
+.deck-rows .frame-link { --frame: #2a62c4; }
+.deck-rows .frame-spell { --frame: #2a9a72; }
+.deck-rows .frame-trap { --frame: #c4468c; }
+.deck-rows .frame-token { --frame: #999; }
+.deck-rows .frame-skill { --frame: #3aa7c9; }
 
 .deck-grid {
   display: grid;

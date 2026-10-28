@@ -4,7 +4,7 @@
 import type { Catalog } from "../data/catalog.ts";
 import { cardImage, prefetchCard } from "../data/images.ts";
 import type { Store } from "../data/store.ts";
-import { frameOf, typeLine } from "../model/classify.ts";
+import { coverCss, coverTop, frameOf, typeLine } from "../model/classify.ts";
 import { drawRarityBadge, rarityPicture } from "../model/rarityBadges.ts";
 import { pageOfSlot, pocketOfSlot } from "../model/layout.ts";
 import type { Binder, BinderCard } from "../model/types.ts";
@@ -131,7 +131,7 @@ export class DetailPanel {
       h(
         "div",
         { class: "detail-scroll empty-state" },
-        h("div", { class: "empty-cover", style: `--cover:${binder.coverColor}` }),
+        h("div", { class: "empty-cover", style: `--cover:${coverTop(binder.coverColor)};--cover-bg:${coverCss(binder.coverColor)}` }),
         h("h2", { class: "card-name", text: binderName(binder) }),
         h("p", { class: "stats", text: t("{n} cards · {unique} different", { n: cards.length, unique }) }),
         h(

@@ -1,6 +1,6 @@
 // Binder editor: name and cover (hex colour or picture).
 
-import { BINDER_COLORS } from "../model/classify.ts";
+import { BINDER_COLORS, coverBottom, coverCss, coverTop, isSplitColor, joinColors } from "../model/classify.ts";
 import { coverImage, deleteCover, saveCover } from "../data/images.ts";
 import type { Store } from "../data/store.ts";
 import type { Binder } from "../model/types.ts";
@@ -12,10 +12,19 @@ export function openBinderEditor(store: Store, binder: Binder, onSaved?: () => v
   const shownName = binderName(binder);
   const name = h("input", { type: "text", value: shownName, maxlength: 40 });
   const showName = h("input", { type: "checkbox", checked: binder.showName !== false });
-  const picker = h("input", { type: "color", value: binder.coverColor, "aria-label": t("Cover colour") });
-  const hex = h("input", { type: "text", value: binder.coverColor, maxlength: 7, pattern: "#[0-9a-fA-F]{6}", spellcheck: false, class: "hex" });
+  let top = coverTop(binder.coverColor);
+  let bottom = coverBottom(binder.coverColor);
+  const split = h("input", { type: "checkbox", checked: isSplitColor(binder.coverColor) });
+  const makePair = (value: string, label: string) => ({
+    picker: h("input", { type: "color", value, "aria-label": label }),
+    hex: h("input", { type: "text", value, maxlength: 7, pattern: "#[0-9a-fA-F]{6}", spellcheck: false, class: "hex" }),
+  });
+  const upper = makePair(top, t("Cover colour"));
+  const lower = makePair(bottom, t("Bottom colour"));
+  let active: "top" | "bottom" = "top";
   const file = h("input", { type: "file", accept: "image/png,image/jpeg,image/webp,image/gif" });
-  const preview = h("div", { class: "cover-preview", style: `--cover:${binder.coverColor}` });
+  const preview = h("div", { class: "cover-preview", style: `--cover:${top};--cover-bg:${coverCss(binder.coverColor)}` });
+  const currentColor = () => (split.checked ? joinColors(top, bottom) : top);
   let picture: Blob | null | undefined; // undefined = unchanged, null = removed
   const removePicture = h("button", { class: "button ghost", type: "button" }, icon("trash", t("Remove picture")));
   removePicture.hidden = !binder.coverImage;
@@ -33,14 +42,31 @@ export function openBinderEditor(store: Store, binder: Binder, onSaved?: () => v
     preview.replaceChildren(canvas);
   });
 
-  const setColor = (value: string) => {
-    if (!/^#[0-9a-f]{6}$/i.test(value)) return;
-    picker.value = value.toLowerCase();
-    hex.value = value.toLowerCase();
-    preview.style.setProperty("--cover", value);
+  const showColor = () => {
+    preview.style.setProperty("--cover", top);
+    preview.style.setProperty("--cover-bg", coverCss(currentColor()));
   };
-  picker.addEventListener("input", () => setColor(picker.value));
-  hex.addEventListener("input", () => setColor(hex.value.startsWith("#") ? hex.value : `#${hex.value}`));
+  const setColor = (value: string, which = active) => {
+    if (!/^#[0-9a-f]{6}$/i.test(value)) return;
+    const pair = which === "top" ? upper : lower;
+    pair.picker.value = value.toLowerCase();
+    pair.hex.value = value.toLowerCase();
+    if (which === "top") top = value.toLowerCase();
+    else bottom = value.toLowerCase();
+    showColor();
+  };
+  for (const [which, pair] of [["top", upper], ["bottom", lower]] as const) {
+    pair.picker.addEventListener("input", () => setColor(pair.picker.value, which));
+    pair.hex.addEventListener("input", () => setColor(pair.hex.value.startsWith("#") ? pair.hex.value : `#${pair.hex.value}`, which));
+    for (const control of [pair.picker, pair.hex]) control.addEventListener("focus", () => (active = which));
+  }
+  const lowerRow = field(t("Bottom colour"), h("div", { class: "color-row" }, lower.picker, lower.hex));
+  lowerRow.hidden = !split.checked;
+  split.addEventListener("change", () => {
+    lowerRow.hidden = !split.checked;
+    if (!split.checked) active = "top";
+    showColor();
+  });
   file.addEventListener("change", async () => {
     const chosen = file.files?.[0];
     if (!chosen) return;
@@ -55,6 +81,16 @@ export function openBinderEditor(store: Store, binder: Binder, onSaved?: () => v
     showPicture(null);
   });
 
+  const remove = h("button", { class: "button danger", type: "button" }, icon("trash", t("Delete binder")));
+  remove.disabled = store.liveBinders().length <= 1;
+  remove.title = remove.disabled ? t("At least one binder must remain.") : "";
+  remove.addEventListener("click", async () => {
+    const count = store.cardsOf(binder.id).length;
+    if (!confirm(t("Delete the binder \"{name}\" and its {n} cards?", { name: shownName, n: count }))) return;
+    await store.deleteBinder(binder.id);
+    dialog.close();
+    onSaved?.();
+  });
   const save = h("button", { class: "button primary", type: "button", text: t("Save") });
   const dialog = dialogShell(
     t("Edit binder"),
@@ -67,26 +103,28 @@ export function openBinderEditor(store: Store, binder: Binder, onSaved?: () => v
         { class: "editor-fields" },
         field(t("Name"), name),
         h("label", { class: "check" }, showName, h("span", { text: t("Show the name on the cover") })),
-        field(t("Cover colour"), h("div", { class: "color-row" }, picker, hex)),
+        field(t("Cover colour"), h("div", { class: "color-row" }, upper.picker, upper.hex)),
+        h("label", { class: "check" }, split, h("span", { text: t("Two colours: top and bottom halves") })),
+        lowerRow,
         h(
           "div",
           { class: "swatches", role: "group", "aria-label": t("Binder colours") },
           ...Object.entries(BINDER_COLORS).map(([label, value]) =>
-            h("button", { type: "button", class: "swatch-button", title: t(label), "aria-label": t(label), style: `--swatch:${value}`, onclick: () => setColor(value) })
+            h("button", { type: "button", class: "swatch-button", title: t(label), "aria-label": t(label), style: `--swatch:${value}`, onclick: () => setColor(value, split.checked ? active : "top") })
           )
         ),
         field(t("Cover picture"), file, t("JPG, PNG, WebP or GIF. It covers the whole front.")),
         removePicture
       )
     ),
-    h("div", { class: "dialog-actions" }, save)
+    h("div", { class: "dialog-actions" }, remove, save)
   );
   save.addEventListener("click", async () => {
     const patch: Partial<Pick<Binder, "name" | "coverColor" | "coverImage" | "showName">> = {
       // A translated default name left as it is keeps the stored (English) name.
       name: name.value.trim() === shownName ? binder.name : name.value.trim() || binder.name,
       showName: showName.checked,
-      coverColor: /^#[0-9a-f]{6}$/i.test(hex.value) ? hex.value.toLowerCase() : binder.coverColor,
+      coverColor: currentColor(),
     };
     try {
       if (picture) {

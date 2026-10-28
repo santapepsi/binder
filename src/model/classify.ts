@@ -15,18 +15,32 @@ export const BINDER_COLORS = {
   green: "#1f5b2c",
   violet: "#8446ad",
   pink: "#c4285b",
+  beige: "#d8c8a4",
+  brown: "#a8581f", // orange-brown
 };
+
+/**
+ * A cover colour is one hex value, or "top|bottom" for a cover split in two halves
+ * (the Pendulum binder). Stored as text, so it syncs like any other colour.
+ */
+export const coverTop = (value: string) => value.split("|")[0];
+export const coverBottom = (value: string) => value.split("|")[1] ?? value.split("|")[0];
+export const isSplitColor = (value: string) => value.includes("|");
+export const joinColors = (top: string, bottom: string) => (top.toLowerCase() === bottom.toLowerCase() ? top : `${top}|${bottom}`);
+/** CSS background for a cover colour. */
+export const coverCss = (value: string) =>
+  isSplitColor(value) ? `linear-gradient(${coverTop(value)} 0 50%, ${coverBottom(value)} 50% 100%)` : value;
 
 /** The type binders plus two personal ones, created on first launch. */
 export const DEFAULT_BINDERS: BinderPreset[] = [
-  { kind: "monster-normal", name: "Normal Monsters", coverColor: BINDER_COLORS.red },
-  { kind: "monster-effect", name: "Effect Monsters", coverColor: BINDER_COLORS.red },
+  { kind: "monster-normal", name: "Normal Monsters", coverColor: BINDER_COLORS.beige },
+  { kind: "monster-effect", name: "Effect Monsters", coverColor: BINDER_COLORS.brown },
   { kind: "monster-ritual", name: "Ritual Monsters", coverColor: BINDER_COLORS.blue },
   { kind: "monster-fusion", name: "Fusion Monsters", coverColor: BINDER_COLORS.violet },
   { kind: "monster-synchro", name: "Synchro Monsters", coverColor: BINDER_COLORS.white },
   { kind: "monster-xyz", name: "Xyz Monsters", coverColor: BINDER_COLORS.black },
   { kind: "monster-link", name: "Link Monsters", coverColor: BINDER_COLORS.blue },
-  { kind: "monster-pendulum", name: "Pendulum Monsters", coverColor: BINDER_COLORS.green },
+  { kind: "monster-pendulum", name: "Pendulum Monsters", coverColor: `${BINDER_COLORS.brown}|${BINDER_COLORS.green}` },
   { kind: "spell", name: "Spells", coverColor: BINDER_COLORS.green },
   { kind: "trap", name: "Traps", coverColor: BINDER_COLORS.pink },
   { kind: "personal", name: "Personal I", coverColor: BINDER_COLORS.black },
@@ -48,6 +62,21 @@ export const PREVIOUS_DEFAULT_COLORS: Record<string, string> = {
   "Personal I": "#3a1820",
   "Personal II": "#23283a",
 };
+
+/**
+ * Defaults that changed once more: the binders still on the old default move to the
+ * new one, one time only (so a colour the user picks later is never reverted).
+ */
+export const RECOLORED: Record<string, string[]> = {
+  "monster-normal": [BINDER_COLORS.red],
+  "monster-effect": [BINDER_COLORS.red],
+  "monster-pendulum": [BINDER_COLORS.green],
+};
+
+export function recoloredDefault(binder: { kind: BinderKind; coverColor: string }): string | null {
+  if (!RECOLORED[binder.kind]?.some((old) => old.toLowerCase() === binder.coverColor.toLowerCase())) return null;
+  return DEFAULT_BINDERS.find((preset) => preset.kind === binder.kind)?.coverColor ?? null;
+}
 
 /** New default colour for a binder whose colour was never changed by the user, else null. */
 export function updatedDefaultColor(binder: { kind: BinderKind; name: string; coverColor: string }): string | null {

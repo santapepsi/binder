@@ -1,7 +1,7 @@
 // App state: binders and the card copies inside them. Local-first: every change
 // is written to IndexedDB immediately and marked dirty for the account sync.
 
-import { DEFAULT_BINDERS, binderKindFor, updatedDefaultColor } from "../model/classify.ts";
+import { DEFAULT_BINDERS, binderKindFor, recoloredDefault, updatedDefaultColor } from "../model/classify.ts";
 import { firstFreeSlot } from "../model/layout.ts";
 import type { Binder, BinderCard, BinderKind, CardSnapshot } from "../model/types.ts";
 import * as db from "./db.ts";
@@ -22,8 +22,47 @@ export class Store extends EventTarget {
     const [binders, cards] = await Promise.all([db.getAll<Binder>("binders"), db.getAll<BinderCard>("cards")]);
     binders.forEach((binder) => this.binders.set(binder.id, binder));
     cards.forEach((card) => this.cards.set(card.id, card));
-    if (!this.liveBinders().length) await this.createDefaults();
+    // The first launch creates the standard binders; later ones may be deleted.
+    if (!this.binders.size) await this.createDefaults();
     await this.refreshDefaultColors();
+    await this.recolorOnce();
+  }
+
+  /** One-time move of binders still on the old Normal / Effect / Pendulum colours. */
+  private async recolorOnce() {
+    if (await db.get<boolean>("meta", "colors2").catch(() => false)) return;
+    const changed: Binder[] = [];
+    for (const binder of this.binders.values()) {
+      const color = recoloredDefault(binder);
+      if (!color) continue;
+      Object.assign(binder, { coverColor: color, updatedAt: Date.now(), dirty: true });
+      changed.push(binder);
+    }
+    await db.put("binders", changed);
+    await db.put("meta", [true], ["colors2"]).catch(() => undefined);
+  }
+
+  /** A new empty personal binder. */
+  async createBinder(name: string, coverColor = "#1c1c1f"): Promise<Binder> {
+    const sort = Math.max(-1, ...[...this.binders.values()].map((binder) => binder.sort)) + 1;
+    const binder: Binder = { id: uuid(), name, kind: "personal", coverColor, coverImage: null, sort, updatedAt: Date.now(), deleted: false, dirty: true };
+    this.binders.set(binder.id, binder);
+    await db.put("binders", [binder]);
+    this.emit([binder.id]);
+    return binder;
+  }
+
+  /** Deletes a binder with all its cards (at least one binder always remains). */
+  async deleteBinder(id: string) {
+    const binder = this.binders.get(id);
+    if (!binder || this.liveBinders().length <= 1) return;
+    const now = Date.now();
+    const cards = this.cardsOf(id);
+    cards.forEach((card) => Object.assign(card, { deleted: true, updatedAt: now, dirty: true }));
+    Object.assign(binder, { deleted: true, updatedAt: now, dirty: true });
+    await db.put("cards", cards);
+    await db.put("binders", [binder]);
+    this.emit([id]);
   }
 
   /** Binders still on the first version's colours move to the new binder colours. */

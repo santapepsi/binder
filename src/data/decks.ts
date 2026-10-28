@@ -118,6 +118,15 @@ export class DeckStore extends EventTarget {
     return null;
   }
 
+  /** Chooses the illustration of one card in a deck. */
+  async setArtwork(id: string, zone: DeckZone, index: number, artworkId: string | null) {
+    const deck = this.get(id);
+    const entry = deck?.[zone][index];
+    if (!deck || !entry) return;
+    entry.artworkId = artworkId;
+    await this.changed(deck);
+  }
+
   async removeAt(id: string, zone: DeckZone, index: number) {
     const deck = this.get(id);
     if (!deck || !deck[zone][index]) return;

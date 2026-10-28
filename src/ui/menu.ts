@@ -7,6 +7,7 @@ import type { Binder } from "../model/types.ts";
 import { deckboxIcon, h, icon, nodes } from "./dom.ts";
 import { openBinderEditor } from "./shelfDialog.ts";
 import { binderName, plural, t } from "../i18n.ts";
+import { coverCss, coverTop } from "../model/classify.ts";
 
 export interface MenuOptions {
   anchor: HTMLElement;
@@ -53,7 +54,7 @@ export function toggleMenu(options: MenuOptions) {
       { class: "shelf" },
       ...store.liveBinders().map((binder) => {
         const count = store.cardsOf(binder.id).length;
-        const spine = h("span", { class: "shelf-cover", style: `--cover:${binder.coverColor}` });
+        const spine = h("span", { class: "shelf-cover", style: `--cover:${coverTop(binder.coverColor)};--cover-bg:${coverCss(binder.coverColor)}` });
         if (binder.coverImage)
           coverImage(binder.id).then((bitmap) => {
             if (!bitmap) return;
@@ -93,8 +94,27 @@ export function toggleMenu(options: MenuOptions) {
             icon("edit")
           )
         );
-      })
+      }),
+      newBinder
     );
+
+  const newBinder = h(
+    "li",
+    {},
+    h(
+      "button",
+      {
+        class: "shelf-pick new-deck",
+        role: "menuitem",
+        onclick: async () => {
+          closeMenu();
+          options.onBinder(await store.createBinder(t("Binder {n}", { n: store.liveBinders().length + 1 })));
+        },
+      },
+      icon("plus"),
+      h("span", { class: "shelf-name", text: t("New binder") })
+    )
+  );
 
   const deckList = () =>
     h(

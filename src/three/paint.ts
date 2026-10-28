@@ -1,6 +1,7 @@
 // 2D canvas painters for everything textured in the scene: the wooden table,
 // cover boards, glow frames, and the pocket pages with their cards.
 
+import { coverBottom, coverTop, isSplitColor } from "../model/classify.ts";
 import { POCKETS } from "../model/layout.ts";
 import { rarityBadge } from "../model/rarityBadges.ts";
 import type { BinderCard } from "../model/types.ts";
@@ -90,8 +91,12 @@ export function paintCover(color: string, image: ImageBitmap | null, label: stri
   const height = Math.round((width * 32) / 26);
   const element = canvas(width, height);
   const context = element.getContext("2d")!;
-  context.fillStyle = color;
+  context.fillStyle = coverTop(color);
   context.fillRect(0, 0, width, height);
+  if (isSplitColor(color)) {
+    context.fillStyle = coverBottom(color);
+    context.fillRect(0, height / 2, width, height / 2);
+  }
   if (image) {
     const scale = Math.max(width / image.width, height / image.height);
     const w = image.width * scale;
@@ -112,7 +117,7 @@ export function paintCover(color: string, image: ImageBitmap | null, label: stri
   context.fillRect(0, 0, width, height);
   if (!label) return element;
   // Lettering where the maker's logo usually is.
-  const dark = !image && luminance(color) > 0.6;
+  const dark = !image && luminance(coverBottom(color)) > 0.6;
   context.fillStyle = dark ? "rgba(30,30,32,0.92)" : "rgba(255,255,255,0.92)";
   context.textAlign = "left";
   context.textBaseline = "alphabetic";
@@ -128,7 +133,7 @@ export function paintCover(color: string, image: ImageBitmap | null, label: stri
 export function paintInside(color: string): HTMLCanvasElement {
   const element = canvas(256, 320);
   const context = element.getContext("2d")!;
-  context.fillStyle = shade(color, 0.42);
+  context.fillStyle = shade(coverTop(color), 0.42);
   context.fillRect(0, 0, 256, 320);
   const rand = random(3);
   for (let index = 0; index < 1200; index++) {
@@ -139,7 +144,7 @@ export function paintInside(color: string): HTMLCanvasElement {
 }
 
 export function edgeColor(color: string) {
-  return shade(color, 0.82);
+  return shade(coverTop(color), 0.82);
 }
 
 /** Yellow glowing frame drawn over the hovered or selected pocket. */

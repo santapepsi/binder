@@ -8,6 +8,8 @@ import type { Store } from "../data/store.ts";
 import type { TableStore } from "../data/table.ts";
 import { frameOf, typeLine } from "../model/classify.ts";
 import type { CardSnapshot } from "../model/types.ts";
+import { artworksOf } from "../model/artworks.ts";
+import { prefetchCard } from "../data/images.ts";
 import { deckboxIcon, h, icon, nodes, toast } from "./dom.ts";
 import type { Catalog } from "../data/catalog.ts";
 import { openDeckCardPicker } from "./deckCardPicker.ts";
@@ -22,7 +24,10 @@ interface Owned {
   count: number;
 }
 
-const COLUMNS = 10;
+const ROW_LABEL = 48; // width of the column with the card counts
+const GAP = 6;
+const MIN_ROWS = 6; // rows always shown: room for a 40-card deck
+const typeName = (frame: string) => t(frame[0].toUpperCase() + frame.slice(1));
 const THUMBS = new Map<string, Drawable>();
 const FRAME_ORDER = ["normal", "effect", "ritual", "fusion", "synchro", "xyz", "link", "token", "skill", "spell", "trap"];
 
@@ -56,6 +61,7 @@ export class DeckView {
   private sort: "type" | "name" | "atk" = "type";
   private owned = new Map<string, Owned>();
   private readonly detail = h("aside", { class: "deck-detail" });
+  private board!: HTMLElement;
   private readonly grid = h("div", { class: "deck-grid", role: "grid" });
   private readonly rows = h("div", { class: "deck-rows", "aria-hidden": "true" });
   private readonly nameInput = h("input", { class: "deck-name", type: "text", maxlength: 40, "aria-label": t("Deck name") });
@@ -92,7 +98,7 @@ export class DeckView {
           h("div", { class: "owned" }, h("span", { class: "owned-label", text: t("Card types owned") }), this.ownedCount)
         ),
         this.tabs,
-        h("div", { class: "deck-board" }, this.rows, this.grid),
+        (this.board = h("div", { class: "deck-board" }, this.rows, this.grid)),
         this.toolbar
       )
     );
@@ -102,9 +108,10 @@ export class DeckView {
     this.element.addEventListener("keydown", (event) => this.onKey(event));
     // Row numbers line up with the card rows.
     new ResizeObserver(() => {
+      if (this.deck && this.fit() !== this.cols) this.renderGrid();
       const first = this.grid.firstElementChild as HTMLElement | null;
       if (first) this.rows.style.gridAutoRows = `${first.getBoundingClientRect().height}px`;
-    }).observe(this.grid);
+    }).observe(this.element);
   }
 
   open(deck: Deck) {
@@ -170,23 +177,24 @@ export class DeckView {
 
   // ---------------------------------------------------------------- grid
 
-  /** Cards shown in the current tab, with where each comes from. */
+  /** Cards shown in the current tab, grouped by card type (the order of FRAME_ORDER). */
   private items(): { card: CardSnapshot; artworkId: string | null; count?: number; used?: number; index: number }[] {
     const deck = this.deck!;
+    const sortWithin = (a: CardSnapshot, b: CardSnapshot) =>
+      this.sort === "name" && this.tab === "binders"
+        ? a.name.localeCompare(b.name)
+        : this.sort === "atk" && this.tab === "binders"
+          ? Number(b.atk ?? -1) - Number(a.atk ?? -1) || a.name.localeCompare(b.name)
+          : compareCards(a, b);
+    const byType = (a: CardSnapshot, b: CardSnapshot) => FRAME_ORDER.indexOf(frameOf(a)) - FRAME_ORDER.indexOf(frameOf(b)) || sortWithin(a, b);
     if (this.tab !== "binders") {
       return deck[this.tab]
         .map((entry, index) => ({ card: entry.card, artworkId: entry.artworkId, index }))
-        .sort((a, b) => compareCards(a.card, b.card));
+        .sort((a, b) => byType(a.card, b.card));
     }
     const words = this.query.toLowerCase().split(/\s+/).filter(Boolean);
     const list = [...this.owned.values()].filter((entry) => words.every((word) => entry.card.name.toLowerCase().includes(word)));
-    list.sort((a, b) =>
-      this.sort === "name"
-        ? a.card.name.localeCompare(b.card.name)
-        : this.sort === "atk"
-          ? Number(b.card.atk ?? -1) - Number(a.card.atk ?? -1) || a.card.name.localeCompare(b.card.name)
-          : compareCards(a.card, b.card)
-    );
+    list.sort((a, b) => byType(a.card, b.card));
     return list.map((entry, index) => ({
       card: entry.card,
       artworkId: entry.artworkId,
@@ -197,43 +205,111 @@ export class DeckView {
   }
 
   private shown: ReturnType<DeckView["items"]> = [];
+  private cols = 10;
+
+  /** Runs of consecutive cards of the same type, each starting on a new row. */
+  private groups(items: ReturnType<DeckView["items"]>) {
+    const groups: { frame: string; items: typeof items; copies: number }[] = [];
+    for (const item of items) {
+      const frame = frameOf(item.card);
+      let group = groups[groups.length - 1];
+      if (!group || group.frame !== frame) groups.push((group = { frame, items: [], copies: 0 }));
+      group.items.push(item);
+      group.copies += item.count ?? 1;
+    }
+    return groups;
+  }
+
+  private rowsFor(cols: number) {
+    return this.groups(this.items()).reduce((sum, group) => sum + Math.ceil(group.items.length / cols), 0);
+  }
+
+  /**
+   * Picks the number of columns: the biggest cards that still show the whole tab, and
+   * always room for a full 40-card deck (six rows) without scrolling.
+   */
+  private fit(): number {
+    if (window.matchMedia("(max-width: 759px), (max-aspect-ratio: 9/10)").matches) return 5;
+    const style = getComputedStyle(this.board);
+    const width = this.board.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight) - ROW_LABEL - 4;
+    const height = this.board.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom);
+    if (width <= 0 || height <= 0) return this.cols;
+    const fits = (cols: number, rows: number) => {
+      const card = (width - (cols - 1) * GAP) / cols;
+      return rows * ((card * 86) / 59 + GAP) - GAP <= height;
+    };
+    const actual = this.rowsFor.bind(this);
+    for (let cols = 10; cols <= 22; cols++) if (fits(cols, Math.max(MIN_ROWS, actual(cols)))) return cols;
+    for (let cols = 10; cols <= 22; cols++) if (fits(cols, MIN_ROWS)) return cols;
+    return 22;
+  }
 
   private renderGrid() {
+    this.cols = this.fit();
+    const cols = this.cols;
     this.shown = this.items();
-    const cells = this.shown.map((item, position) => {
-      const canvas = h("canvas", { width: 118, height: 172 }) as HTMLCanvasElement;
-      const cell = h(
-        "button",
-        {
-          class: `deck-card${this.isSelected(item.index) ? " selected" : ""}${item.used !== undefined && item.used >= Math.min(COPIES_PER_CARD, item.count ?? 0) ? " used-up" : ""}`,
-          title: item.card.name,
-          role: "gridcell",
-          onclick: () => this.select(item.index),
-          ondblclick: () => this.primaryAction(),
-        },
-        canvas,
-        item.count !== undefined ? h("span", { class: "copies", text: `×${item.count}` }) : null,
-        item.used ? h("span", { class: "in-deck", text: String(item.used) }) : null
-      ) as HTMLButtonElement & { draw?: () => void };
-      const key = `${item.card.catalogId}|${item.artworkId ?? ""}`;
-      const paint = (image: Drawable) => canvas.getContext("2d")!.drawImage(image, 0, 0, canvas.width, canvas.height);
-      const cached = THUMBS.get(key);
-      // Already loaded cards are painted at once, so re-rendering the grid never blinks.
-      if (cached) paint(cached);
-      cell.draw = () =>
-        cardImage(item.card, "thumb", item.artworkId).then((image) => {
-          if (!("placeholder" in image && image.placeholder)) THUMBS.set(key, image);
-          paint(image);
-        });
-      cell.dataset.position = String(position);
-      if (!cached) this.observer.observe(cell);
-      return cell;
-    });
-    const minimumRows = 4;
-    const rowCount = Math.max(minimumRows, Math.ceil(cells.length / COLUMNS));
-    for (let index = cells.length; index < rowCount * COLUMNS; index++) cells.push(h("span", { class: "deck-card empty", "aria-hidden": "true" }) as never);
+    const cells: HTMLElement[] = [];
+    const labels: HTMLElement[] = [];
+    let rowCount = 0;
+    for (const group of this.groups(this.shown)) {
+      const rows = Math.ceil(group.items.length / cols);
+      for (const item of group.items) cells.push(this.cell(item));
+      for (let index = group.items.length; index < rows * cols; index++) cells.push(this.blank());
+      const label = h("span", { class: `type-count frame-${group.frame}` }, h("b", { text: String(group.copies) }), h("small", { text: typeName(group.frame) }));
+      label.style.gridRow = `span ${rows}`;
+      labels.push(label);
+      rowCount += rows;
+    }
+    // Empty rows up to a full screen, so the board always looks like a deck screen.
+    for (let index = rowCount; index < MIN_ROWS; index++) {
+      for (let column = 0; column < cols; column++) cells.push(this.blank());
+      labels.push(h("span", { class: "type-count empty" }));
+    }
+    this.grid.style.gridTemplateColumns = `repeat(${cols}, minmax(0, 1fr))`;
     this.grid.replaceChildren(...cells);
-    this.rows.replaceChildren(...Array.from({ length: rowCount }, (_, row) => h("span", { text: String(row * COLUMNS) })));
+    this.rows.replaceChildren(...labels);
+  }
+
+  private blank() {
+    return h("span", { class: "deck-card empty", "aria-hidden": "true" });
+  }
+
+  private cell(item: ReturnType<DeckView["items"]>[number]) {
+    const canvas = h("canvas", { width: 168, height: 246 }) as HTMLCanvasElement;
+    const cell = h(
+      "button",
+      {
+        class: `deck-card${this.isSelected(item.index) ? " selected" : ""}${item.used !== undefined && item.used >= Math.min(COPIES_PER_CARD, item.count ?? 0) ? " used-up" : ""}`,
+        title: item.card.name,
+        role: "gridcell",
+        onclick: () => this.select(item.index),
+        ondblclick: () => this.primaryAction(),
+      },
+      canvas,
+      item.count !== undefined ? h("span", { class: "copies", text: `×${item.count}` }) : null,
+      item.used ? h("span", { class: "in-deck", text: String(item.used) }) : null
+    ) as HTMLButtonElement & { draw?: () => void };
+    const key = `${item.card.catalogId}|${item.artworkId ?? ""}`;
+    // The picture keeps its own resolution (the 168 x 246 thumbnail): scaling it to a
+    // smaller canvas first and showing that bigger made the cards blurry.
+    const paint = (image: Drawable) => {
+      canvas.width = image.width;
+      canvas.height = image.height;
+      const context = canvas.getContext("2d")!;
+      context.imageSmoothingQuality = "high";
+      context.drawImage(image, 0, 0);
+    };
+    const cached = THUMBS.get(key);
+    // Already loaded cards are painted at once, so re-rendering the grid never blinks.
+    if (cached) paint(cached);
+    cell.draw = () =>
+      cardImage(item.card, "thumb", item.artworkId).then((image) => {
+        if (!("placeholder" in image && image.placeholder)) THUMBS.set(key, image);
+        paint(image);
+      });
+    cell.dataset.index = String(item.index);
+    if (!cached) this.observer.observe(cell);
+    return cell;
   }
 
   private isSelected(index: number) {
@@ -243,8 +319,7 @@ export class DeckView {
   private select(index: number) {
     this.selected = { tab: this.tab, index };
     for (const cell of this.grid.querySelectorAll(".deck-card.selected")) cell.classList.remove("selected");
-    const position = this.shown.findIndex((item) => item.index === index);
-    this.grid.children[position]?.classList.add("selected");
+    this.grid.querySelector(`[data-index="${index}"]`)?.classList.add("selected");
     this.renderDetail();
     this.renderToolbar();
   }
@@ -399,9 +474,29 @@ export class DeckView {
       h("h2", { class: "card-name", text: info.name }),
       h("div", { class: `type-tag frame-${frameOf(info)}`, text: `[${translateTypeLine(typeLine(info))}]` }),
       h("p", { class: "muted", text: t("In this deck: {n} · owned: {owned}", { n: inDeck, owned }) + (isExtraDeckCard(info) ? t(" · Extra Deck card") : "") }),
+      this.artworkPicker(item),
       info.pendulumText ? h("p", { class: "card-text pendulum", text: info.pendulumText }) : null,
       h("p", { class: "card-text", text: info.text || t("No card text.") })
     ));
+  }
+
+  /** Artwork choice for a card that is in the deck (cards with a single artwork show nothing). */
+  private artworkPicker(item: { card: CardSnapshot; artworkId: string | null; index: number }) {
+    if (this.tab === "binders" || !this.deck) return null;
+    const artworks = artworksOf(item.card);
+    if (artworks.length < 2) return null;
+    const labels = artworks.map((_, index) => (index === 0 ? t("Artwork 1 (main)") : t("Artwork {n}", { n: index + 1 })));
+    const current = Math.max(0, artworks.findIndex((art) => art.id === item.artworkId));
+    const zone = this.tab;
+    const deckId = this.deck.id;
+    const element = h("select", { class: "deck-artwork", "aria-label": t("Artwork for this card in the deck") });
+    labels.forEach((label, index) => element.append(h("option", { value: String(index), text: label, selected: index === current })));
+    element.addEventListener("change", () => {
+      const artworkId = artworks[Number(element.value)].id;
+      prefetchCard(item.card, artworkId).catch(() => undefined);
+      this.decks.setArtwork(deckId, zone, item.index, artworkId);
+    });
+    return h("label", { class: "field" }, h("span", { class: "field-label", text: t("Artwork") }), element);
   }
 
   private onKey(event: KeyboardEvent) {
