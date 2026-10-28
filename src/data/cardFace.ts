@@ -76,10 +76,10 @@ export function drawCardFace(card: CardSnapshot, width: number): HTMLCanvasEleme
   context.fillStyle = "rgba(255,255,255,0.22)";
   context.fillRect(unit * 3.5, unit * 3.5, width - unit * 7, unit * 7);
   let size = unit * 4.2;
-  context.font = `900 ${size}px Nunito, system-ui, sans-serif`;
+  context.font = `900 ${size}px Bia, Nunito, system-ui, sans-serif`;
   while (context.measureText(card.name).width > width - unit * 16 && size > unit * 2.2) {
     size -= unit * 0.2;
-    context.font = `900 ${size}px Nunito, system-ui, sans-serif`;
+    context.font = `900 ${size}px Bia, Nunito, system-ui, sans-serif`;
   }
   context.fillStyle = ink;
   context.textBaseline = "middle";
@@ -96,7 +96,7 @@ export function drawCardFace(card: CardSnapshot, width: number): HTMLCanvasEleme
   context.lineWidth = unit * 0.5;
   context.stroke();
   context.fillStyle = "#fff";
-  context.font = `900 ${unit * 2.6}px Nunito, system-ui, sans-serif`;
+  context.font = `900 ${unit * 2.6}px Bia, Nunito, system-ui, sans-serif`;
   context.textAlign = "center";
   const glyph = card.cardType === "Monster" ? (card.attribute ?? "?")[0] : card.cardType[0];
   context.fillText(glyph, discX, unit * 7.2);
@@ -161,14 +161,14 @@ export function drawCardFace(card: CardSnapshot, width: number): HTMLCanvasEleme
   context.fillStyle = frame === "normal" ? "#efe0b8" : "#f1ece2";
   context.fillRect(unit * 3.5, boxY, width - unit * 7, boxH);
   context.fillStyle = "#16120e";
-  context.font = `900 ${unit * 2}px Nunito, system-ui, sans-serif`;
+  context.font = `900 ${unit * 2}px Bia, Nunito, system-ui, sans-serif`;
   context.textBaseline = "top";
   context.fillText(`[${typeLine(card)}]`, unit * 4.6, boxY + unit * 1);
-  context.font = `700 ${unit * 1.85}px Nunito, system-ui, sans-serif`;
+  context.font = `700 ${unit * 1.85}px Bia, Nunito, system-ui, sans-serif`;
   const lines = wrap(context, card.text, width - unit * 9.5).slice(0, 5);
   lines.forEach((line, index) => context.fillText(line, unit * 4.6, boxY + unit * (3.6 + index * 2.3)));
   if (card.atk !== null) {
-    context.font = `900 ${unit * 2}px Nunito, system-ui, sans-serif`;
+    context.font = `900 ${unit * 2}px Bia, Nunito, system-ui, sans-serif`;
     context.textAlign = "right";
     const stats = card.linkRating ? `ATK/${card.atk}  LINK-${card.linkRating}` : `ATK/${card.atk}  DEF/${card.def ?? "?"}`;
     context.fillText(stats, width - unit * 4.6, boxY + boxH - unit * 2.8);

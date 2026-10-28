@@ -140,7 +140,7 @@ export class Store extends EventTarget {
     this.emit([card.binderId]);
   }
 
-  async updateBinder(id: string, patch: Partial<Pick<Binder, "name" | "coverColor" | "coverImage">>) {
+  async updateBinder(id: string, patch: Partial<Pick<Binder, "name" | "coverColor" | "coverImage" | "showName">>) {
     const binder = this.binders.get(id);
     if (!binder) return;
     Object.assign(binder, patch, { updatedAt: Date.now(), dirty: true });

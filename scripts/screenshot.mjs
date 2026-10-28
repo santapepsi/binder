@@ -44,6 +44,7 @@ await run("desktop", { width: 1440, height: 900 }, async (page) => {
   // custom cover: hex colour
   await page.click('[aria-label="Edit binder"]');
   await page.fill(".hex", "#2b4a7a");
+  await page.uncheck(".check input");
   await page.click(".dialog-actions .button.primary");
   await page.waitForTimeout(500);
   await shot(page, "01b-cover-colour");

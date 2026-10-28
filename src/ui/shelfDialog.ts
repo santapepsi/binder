@@ -54,6 +54,7 @@ export function openShelf(store: Store, currentId: string, onPick: (binder: Bind
 
 export function openBinderEditor(store: Store, binder: Binder, onSaved?: () => void) {
   const name = h("input", { type: "text", value: binder.name, maxlength: 40 });
+  const showName = h("input", { type: "checkbox", checked: binder.showName !== false });
   const picker = h("input", { type: "color", value: binder.coverColor, "aria-label": "Cover colour" });
   const hex = h("input", { type: "text", value: binder.coverColor, maxlength: 7, pattern: "#[0-9a-fA-F]{6}", spellcheck: false, class: "hex" });
   const file = h("input", { type: "file", accept: "image/png,image/jpeg,image/webp,image/gif" });
@@ -108,6 +109,7 @@ export function openBinderEditor(store: Store, binder: Binder, onSaved?: () => v
         "div",
         { class: "editor-fields" },
         field("Name", name),
+        h("label", { class: "check" }, showName, h("span", { text: "Show the name on the cover" })),
         field("Cover colour", h("div", { class: "color-row" }, picker, hex)),
         field("Cover picture", file, "JPG, PNG, WebP or GIF. It covers the whole front."),
         removePicture
@@ -116,8 +118,9 @@ export function openBinderEditor(store: Store, binder: Binder, onSaved?: () => v
     h("div", { class: "dialog-actions" }, save)
   );
   save.addEventListener("click", async () => {
-    const patch: Partial<Pick<Binder, "name" | "coverColor" | "coverImage">> = {
+    const patch: Partial<Pick<Binder, "name" | "coverColor" | "coverImage" | "showName">> = {
       name: name.value.trim() || binder.name,
+      showName: showName.checked,
       coverColor: /^#[0-9a-f]{6}$/i.test(hex.value) ? hex.value.toLowerCase() : binder.coverColor,
     };
     try {

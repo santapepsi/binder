@@ -283,7 +283,7 @@ export class BinderScene {
       return texture;
     };
     this.coverTextures = [];
-    const outer = make(paintCover(binder.coverColor, picture, binder.name));
+    const outer = make(paintCover(binder.coverColor, picture, binder.showName === false ? null : binder.name));
     const inside = make(paintInside(binder.coverColor));
     const edge = new THREE.Color(edgeColor(binder.coverColor));
     const set = (mesh: THREE.Mesh, top: THREE.Texture | null, bottom: THREE.Texture | null) => {

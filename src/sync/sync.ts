@@ -21,6 +21,7 @@ interface BinderRow {
   name: string;
   kind: string;
   cover_color: string;
+  show_name?: boolean;
   cover_image: string | null;
   sort: number;
   updated_at: string;
@@ -257,11 +258,19 @@ export class Sync extends EventTarget {
     const binders = [...this.store.binders.values()].filter((binder) => binder.dirty);
     const cards = [...this.store.cards.values()].filter((card) => card.dirty);
     if (binders.length) {
-      await this.request("binders?on_conflict=id", {
-        method: "POST",
-        headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
-        body: JSON.stringify(binders.map(toBinderRow)),
-      });
+      const send = (rows: Partial<BinderRow>[]) =>
+        this.request("binders?on_conflict=id", {
+          method: "POST",
+          headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
+          body: JSON.stringify(rows),
+        });
+      try {
+        await send(binders.map(toBinderRow));
+      } catch (error) {
+        // Projects created before the "show name" option lack that column: sync without it.
+        if (!String(error).includes("show_name")) throw error;
+        await send(binders.map(toBinderRow).map(({ show_name: _hidden, ...row }) => row));
+      }
     }
     for (let index = 0; index < cards.length; index += 200) {
       await this.request("binder_cards?on_conflict=id", {
@@ -343,6 +352,7 @@ function toBinderRow(binder: Binder): BinderRow {
     name: binder.name,
     kind: binder.kind,
     cover_color: binder.coverColor,
+    show_name: binder.showName !== false,
     cover_image: binder.coverImage?.startsWith(LOCAL_COVER) ? null : binder.coverImage,
     sort: binder.sort,
     updated_at: iso(binder.updatedAt),
@@ -356,6 +366,7 @@ function fromBinderRow(row: BinderRow): Binder {
     name: row.name,
     kind: row.kind as Binder["kind"],
     coverColor: row.cover_color,
+    showName: row.show_name !== false,
     coverImage: row.cover_image,
     sort: row.sort,
     updatedAt: Date.parse(row.updated_at),

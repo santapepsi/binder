@@ -20,6 +20,11 @@ const portrait = () => window.innerWidth < 760 || window.innerWidth / window.inn
 export async function startApp(root: HTMLElement) {
   const store = new Store();
   await store.load();
+  // Covers and card faces are drawn on canvases: wait (briefly) for the fonts first.
+  await Promise.race([
+    Promise.all(["32px Bia", "900 32px Nunito", "700 32px Nunito"].map((font) => document.fonts.load(font))),
+    new Promise((resolve) => setTimeout(resolve, 1500)),
+  ]).catch(() => undefined);
   let settings: Settings = loadSettings();
   // ?debug&catalog=<url> loads a local test database instead of YGOPRODeck.
   const params = new URLSearchParams(location.search);

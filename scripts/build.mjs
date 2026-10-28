@@ -20,7 +20,7 @@ const options = {
   outdir: `${outdir}/assets`,
   entryNames: serve ? "[name]" : "[name]-[hash]",
   assetNames: "[name]-[hash]",
-  loader: { ".woff": "file" },
+  loader: { ".woff": "file", ".otf": "file" },
   minify: !serve,
   sourcemap: serve,
   metafile: true,

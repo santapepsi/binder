@@ -73,7 +73,7 @@ const shade = (hex: string, amount: number) => {
 };
 
 /** Outer face of the front cover: colour or picture, a soft leather grain and a name plate. */
-export function paintCover(color: string, image: ImageBitmap | null, name: string): HTMLCanvasElement {
+export function paintCover(color: string, image: ImageBitmap | null, name: string | null): HTMLCanvasElement {
   const width = 512;
   const height = Math.round((width * 32) / 26);
   const element = canvas(width, height);
@@ -102,6 +102,7 @@ export function paintCover(color: string, image: ImageBitmap | null, name: strin
   context.lineWidth = 2;
   context.strokeRect(18, 18, width - 36, height - 36);
   context.setLineDash([]);
+  if (!name) return element;
   // name plate
   const plateW = width * 0.62;
   const plateX = (width - plateW) / 2;
@@ -116,8 +117,8 @@ export function paintCover(color: string, image: ImageBitmap | null, name: strin
   context.textAlign = "center";
   context.textBaseline = "middle";
   let size = 34;
-  context.font = `900 ${size}px Nunito, system-ui, sans-serif`;
-  while (context.measureText(name).width > plateW - 30 && size > 14) context.font = `900 ${--size}px Nunito, system-ui, sans-serif`;
+  context.font = `900 ${size}px Bia, Nunito, system-ui, sans-serif`;
+  while (context.measureText(name).width > plateW - 30 && size > 14) context.font = `900 ${--size}px Bia, Nunito, system-ui, sans-serif`;
   context.fillText(name, width / 2, 85);
   return element;
 }
@@ -237,7 +238,7 @@ export function paintPage(target: HTMLCanvasElement | null, input: PagePainterIn
         context.fillRect(cr.x * s, cr.y * s, cr.w * s, cr.h * s);
         context.shadowColor = "transparent";
         context.fillStyle = "#f3e2b0";
-        context.font = `900 ${0.62 * s}px Nunito, system-ui, sans-serif`;
+        context.font = `900 ${0.62 * s}px Bia, Nunito, system-ui, sans-serif`;
         context.textAlign = "center";
         context.textBaseline = "middle";
         const lines = wrapText(context, card.card.name, (cr.w - 0.6) * s).slice(0, 5);
@@ -248,7 +249,7 @@ export function paintPage(target: HTMLCanvasElement | null, input: PagePainterIn
       context.restore();
       const tag = rarityTag(card.printing?.rarity);
       if (tag) {
-        context.font = `900 ${0.5 * s}px Nunito, system-ui, sans-serif`;
+        context.font = `900 ${0.5 * s}px Bia, Nunito, system-ui, sans-serif`;
         const tw = context.measureText(tag).width + 0.4 * s;
         const tx = (cr.x + cr.w) * s - tw - 0.15 * s;
         const ty = (cr.y + cr.h) * s - 0.95 * s;

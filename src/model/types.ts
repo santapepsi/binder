@@ -22,6 +22,8 @@ export interface Binder {
   coverColor: string; // #rrggbb
   /** Key of the cover image blob in the local image store; remote path when synced. */
   coverImage: string | null;
+  /** Show the binder's name on the cover (default true). */
+  showName?: boolean;
   sort: number;
   updatedAt: number;
   deleted: boolean;

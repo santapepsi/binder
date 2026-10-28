@@ -8,6 +8,7 @@ create table if not exists public.binders (
   kind text not null,
   cover_color text not null default '#3a1820',
   cover_image text,
+  show_name boolean not null default true,
   sort integer not null default 0,
   updated_at timestamptz not null,
   deleted boolean not null default false,
@@ -33,6 +34,7 @@ create table if not exists public.binder_cards (
 
 -- For projects created with an earlier version of this file.
 alter table public.binder_cards add column if not exists artwork_id text;
+alter table public.binders add column if not exists show_name boolean not null default true;
 
 create index if not exists binders_user_sync on public.binders (user_id, server_updated_at);
 create index if not exists binder_cards_user_sync on public.binder_cards (user_id, server_updated_at);
