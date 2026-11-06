@@ -17,6 +17,11 @@ export class DetailPanel {
   readonly element = h("aside", { class: "detail panel", "aria-label": t("Card details") });
   private current: BinderCard | null = null;
 
+  /** The copy being shown (the selected card). */
+  get card(): BinderCard | null {
+    return this.current;
+  }
+
   constructor(
     private store: Store,
     private getCatalog: () => Catalog,

@@ -40,6 +40,8 @@ export interface SceneEvents {
   tableSlot(id: string): void;
   /** A table spot was dragged to a new place. */
   tableMove(id: string, x: number, z: number): void;
+  /** Long press (touch) or right click on a pocket, with or without a card. */
+  context(slot: number, card: BinderCard | null, x: number, y: number): void;
 }
 
 export interface ViewState {
@@ -127,6 +129,8 @@ export class BinderScene {
   private down: { x: number; y: number; time: number; hit: Hit | null; type: string; id: number; spot: TableSlot | null } | null = null;
   private dragging: BinderCard | null = null;
   private longPress = 0;
+  /** A long press on an empty pocket already opened its menu; the release must not also tap. */
+  private longPressed = false;
   private edgeTimer = 0;
   private edgeSide: "left" | "right" | null = null;
   private readonly anisotropy: number;
@@ -358,6 +362,11 @@ export class BinderScene {
   select(slot: number | null) {
     this.selectedSlot = slot;
     this.updateGlows();
+  }
+
+  /** Pocket under the mouse, else the selected one: where Paste goes. */
+  get targetSlot(): number | null {
+    return this.hoverHit?.slot ?? this.selectedSlot;
   }
 
   // ---------------------------------------------------------------- navigation
@@ -834,7 +843,17 @@ export class BinderScene {
       this.cancelDrag();
     });
     canvas.addEventListener("pointerleave", (event) => event.pointerType === "mouse" && !this.dragging && this.setHover(null));
-    canvas.addEventListener("contextmenu", (event) => event.preventDefault());
+    canvas.addEventListener("contextmenu", (event) => {
+      event.preventDefault();
+      if (event.pointerType === "touch" || this.busy || this.dragging) return;
+      const { hit } = this.pick(event.clientX, event.clientY);
+      if (!hit) return;
+      const card = this.cards.get(hit.slot) ?? null;
+      this.selectedSlot = card ? hit.slot : null;
+      this.updateGlows();
+      this.events.select(card);
+      this.events.context(hit.slot, card, event.clientX, event.clientY);
+    });
     // Wheel: a little zoom out to reach the cards on the table at the sides, not far.
     canvas.addEventListener(
       "wheel",
@@ -891,6 +910,7 @@ export class BinderScene {
     const { hit } = this.pick(event.clientX, event.clientY);
     const tablePoint = hit ? null : this.tablePoint(event.clientX, event.clientY);
     const spot = tablePoint ? this.table.slotAt(tablePoint.x, tablePoint.z) : null;
+    this.longPressed = false;
     this.down = { x: event.clientX, y: event.clientY, time: performance.now(), hit, type: event.pointerType, id: event.pointerId, spot };
     if (spot && event.pointerType !== "mouse") {
       this.longPress = window.setTimeout(() => {
@@ -905,6 +925,12 @@ export class BinderScene {
         navigator.vibrate?.(15);
         this.startDrag(card, event.clientX, event.clientY);
       }, 320);
+    } else if (hit && !card && event.pointerType !== "mouse" && !this.busy) {
+      this.longPress = window.setTimeout(() => {
+        navigator.vibrate?.(15);
+        this.longPressed = true;
+        this.events.context(hit.slot, null, event.clientX, event.clientY);
+      }, 420);
     }
   }
 
@@ -972,7 +998,11 @@ export class BinderScene {
       return;
     }
     if (this.dragging) {
-      this.drop(event.clientX, event.clientY);
+      this.drop(event.clientX, event.clientY, down);
+      return;
+    }
+    if (this.longPressed) {
+      this.longPressed = false;
       return;
     }
     const dx = event.clientX - down.x;
@@ -1064,10 +1094,19 @@ export class BinderScene {
     this.ghost.rotation.set(-Math.PI / 2 + 0.12, THREE.MathUtils.clamp(-velocity * 0.004, -0.35, 0.35), 0);
   }
 
-  private drop(clientX: number, clientY: number) {
+  private drop(clientX: number, clientY: number, down: NonNullable<BinderScene["down"]>) {
     const card = this.dragging;
     const { hit } = this.pick(clientX, clientY);
+    const stayed = down.type !== "mouse" && Math.hypot(clientX - down.x, clientY - down.y) <= 14;
     this.endDrag();
+    if (card && stayed && hit?.slot === card.slot) {
+      // A long press without dragging: select the card and offer Copy / Cut.
+      this.selectedSlot = card.slot;
+      this.events.select(card);
+      this.events.context(card.slot, card, clientX, clientY);
+      this.updateGlows();
+      return;
+    }
     if (card && hit && hit.slot !== card.slot && !this.busy) {
       this.selectedSlot = hit.slot;
       this.events.move(card.id, hit.slot);

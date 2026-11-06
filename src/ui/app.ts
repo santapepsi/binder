@@ -20,6 +20,7 @@ import { openBinderEditor } from "./shelfDialog.ts";
 import { DeckStore, type Deck } from "../data/decks.ts";
 import { DeckView } from "./deckView.ts";
 import { closeMenu, toggleMenu } from "./menu.ts";
+import { clipItem, confirmReplace, showContextMenu, type ClipboardItem, type MenuItem } from "./clipboard.ts";
 import { binderName, plural, t } from "../i18n.ts";
 
 /** Portrait layout (bottom sheet, one page in focus). A phone turned sideways is short, so it keeps the wide layout. */
@@ -167,6 +168,7 @@ export async function startApp(root: HTMLElement) {
     view: (state) => updatePager(state),
     tableSlot: (id) => openSpotMenu(table, catalog, id, highlightSpot),
     tableMove: (id, x, z) => table.update(id, { x, z }),
+    context: (slot, card, x, y) => slotMenu(slot, card, x, y),
   });
   scene.renderer.domElement.setAttribute("aria-label", t("3D binder. Use the arrow keys to turn pages."));
   if (portrait()) scene.setFocus("right");
@@ -215,31 +217,67 @@ export async function startApp(root: HTMLElement) {
   }
 
   function addCard(slot?: number) {
-    openAddCard({
-      store,
-      catalog,
-      binder,
-      slot,
-      onAdded: (card: BinderCard) => {
-        const target = store.binders.get(card.binderId)!;
-        if (target.id === binder.id) {
-          scene.showSlot(card.slot);
-          scene.select(card.slot);
-          detail.show(card, binder);
-        } else {
-          toast(t("{name} went to {binder}.", { name: card.card.name, binder: binderName(target) }), {
-            label: t("Open"),
-            run: async () => {
-              await switchBinder(target);
-              scene.showSlot(card.slot);
-              scene.select(card.slot);
-              detail.show(card, target);
-            },
-          });
-        }
+    openAddCard({ store, catalog, binder, slot, onAdded: placed });
+  }
+
+  /** Shows a card that was just added or pasted (it may have been routed to another binder). */
+  function placed(card: BinderCard) {
+    const target = store.binders.get(card.binderId)!;
+    if (target.id === binder.id) {
+      scene.showSlot(card.slot);
+      scene.select(card.slot);
+      detail.show(card, binder);
+      return;
+    }
+    toast(t("{name} went to {binder}.", { name: card.card.name, binder: binderName(target) }), {
+      label: t("Open"),
+      run: async () => {
+        await switchBinder(target);
+        scene.showSlot(card.slot);
+        scene.select(card.slot);
+        detail.show(card, target);
       },
     });
   }
+
+  // ---- copy / cut / paste
+  let clipboard: ClipboardItem | null = null;
+
+  function copyCard(card: BinderCard) {
+    clipboard = clipItem(card);
+    toast(t("Copied {name}.", { name: card.card.name }));
+  }
+
+  async function cutCard(card: BinderCard) {
+    clipboard = clipItem(card);
+    await store.removeCard(card.id);
+    scene.select(null);
+    detail.show(null, binder);
+    toast(t("Cut {name}. Paste it in another pocket.", { name: card.card.name }));
+  }
+
+  /** Pastes the copied card into a pocket; an occupied pocket asks before it is replaced. */
+  async function pasteInto(slot: number) {
+    if (!clipboard) return toast(t("Nothing copied yet."));
+    const item = clipboard;
+    const occupant = store.cardAt(binder.id, slot);
+    if (occupant) {
+      if (!(await confirmReplace(occupant.card.name, item.card.name))) return;
+      await store.removeCard(occupant.id);
+    }
+    placed(await store.addCard(binder.id, item.card, item.copy, slot));
+  }
+
+  const slotMenu = (slot: number, card: BinderCard | null, x: number, y: number) => {
+    const items: MenuItem[] = [];
+    if (card) {
+      items.push({ label: t("Copy"), hint: "Ctrl+C", run: () => copyCard(card) });
+      items.push({ label: t("Cut"), hint: "Ctrl+X", run: () => cutCard(card) });
+    }
+    if (clipboard) items.push({ label: card ? t("Paste over this card") : t("Paste here"), hint: "Ctrl+V", run: () => pasteInto(slot) });
+    else if (!card) items.push({ label: t("Add card"), run: () => addCard(slot) });
+    showContextMenu(x, y, items);
+  };
 
   function settingsDialog() {
     openSettings(settings, sync, catalog, table, (next) => {
@@ -278,6 +316,19 @@ export async function startApp(root: HTMLElement) {
     if (document.querySelector("dialog[open]") || mode === "deck") return;
     const target = event.target as HTMLElement;
     if (target.matches("input, textarea, select")) return;
+    if ((event.ctrlKey || event.metaKey) && !event.altKey) {
+      const key = event.key.toLowerCase();
+      const selected = detail.card;
+      if (key === "c" && selected) copyCard(selected);
+      else if (key === "x" && selected) cutCard(selected);
+      else if (key === "v") {
+        const slot = scene.targetSlot;
+        if (slot === null) toast(t("Select or point at a pocket to paste into."));
+        else pasteInto(slot);
+      } else return;
+      event.preventDefault();
+      return;
+    }
     if (event.key === "ArrowRight") scene.next();
     else if (event.key === "ArrowLeft") scene.previous();
     else if (event.key === "Home") scene.first();
