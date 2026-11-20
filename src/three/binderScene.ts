@@ -71,6 +71,8 @@ interface Tween {
 const imageKey = (card: BinderCard) => `${card.id}|${card.artworkId ?? ""}`;
 const ease = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 const SPREAD_HALF = PAGE_GAP + PAGE_W;
+/** Outer strip of a page (cm): clicking it turns the page instead of touching the card beside it. */
+const EDGE_TURN = 1.9;
 
 /** How far the wheel can zoom out, as a multiple of the binder framing. */
 const MAX_ZOOM = 1.5;
@@ -126,7 +128,16 @@ export class BinderScene {
   private coverTextures: THREE.Texture[] = [];
 
   // pointer state
-  private down: { x: number; y: number; time: number; hit: Hit | null; type: string; id: number; spot: TableSlot | null } | null = null;
+  private down: {
+    x: number;
+    y: number;
+    time: number;
+    hit: Hit | null;
+    type: string;
+    id: number;
+    spot: TableSlot | null;
+    edge: "left" | "right" | null;
+  } | null = null;
   private dragging: BinderCard | null = null;
   private longPress = 0;
   /** A long press on an empty pocket already opened its menu; the release must not also tap. */
@@ -781,21 +792,28 @@ export class BinderScene {
 
   // ---------------------------------------------------------------- picking
 
-  private pick(clientX: number, clientY: number): { hit: Hit | null; point: THREE.Vector3 | null } {
+  /**
+   * Pocket under the pointer. With `edges` (the default) the outer strip of each page belongs to the
+   * binder: it reports `edge` and no pocket, so a click there turns the page instead of grabbing a card.
+   */
+  private pick(clientX: number, clientY: number, edges = true): { hit: Hit | null; point: THREE.Vector3 | null; edge: "left" | "right" | null } {
     const rect = this.renderer.domElement.getBoundingClientRect();
     this.pointer.set(((clientX - rect.left) / rect.width) * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1);
     this.raycaster.setFromCamera(this.pointer, this.camera);
     const point = this.raycaster.ray.intersectPlane(this.pagePlane, new THREE.Vector3());
-    if (!point || this.spread < 0) return { hit: null, point };
+    if (!point || this.spread < 0) return { hit: null, point, edge: null };
     const { left, right } = pagesOfSpread(this.spread, this.pages);
     const side = point.x >= 0 ? "right" : "left";
+    if (edges && Math.abs(point.x) > SPREAD_HALF - EDGE_TURN && Math.abs(point.z) < PAGE_H / 2 + 1) {
+      return { hit: null, point, edge: side === "right" || this.spread > 0 || this.focus === "right" ? side : null };
+    }
     const page = side === "right" ? right : left;
-    if (page === null || page < 0) return { hit: null, point };
+    if (page === null || page < 0) return { hit: null, point, edge: null };
     const imageX = side === "right" ? point.x - PAGE_GAP : PAGE_W - (-point.x - PAGE_GAP);
     const imageY = point.z + PAGE_H / 2;
     const pocket = pocketAt(imageX, imageY, side === "right");
-    if (pocket < 0) return { hit: null, point };
-    return { hit: { page, pocket, slot: slotOf(page, pocket), side, imageX }, point };
+    if (pocket < 0) return { hit: null, point, edge: null };
+    return { hit: { page, pocket, slot: slotOf(page, pocket), side, imageX }, point, edge: null };
   }
 
   private placeGlow(mesh: THREE.Mesh, slot: number | null) {
@@ -907,11 +925,12 @@ export class BinderScene {
     if (this.trackTouch(event, true)) return;
     if (!event.isPrimary || event.button > 0) return;
     this.renderer.domElement.setPointerCapture(event.pointerId);
-    const { hit } = this.pick(event.clientX, event.clientY);
+    const { hit, edge: pageEdge } = this.pick(event.clientX, event.clientY);
     const tablePoint = hit ? null : this.tablePoint(event.clientX, event.clientY);
     const spot = tablePoint ? this.table.slotAt(tablePoint.x, tablePoint.z) : null;
+    const edge = spot ? null : pageEdge;
     this.longPressed = false;
-    this.down = { x: event.clientX, y: event.clientY, time: performance.now(), hit, type: event.pointerType, id: event.pointerId, spot };
+    this.down = { x: event.clientX, y: event.clientY, time: performance.now(), hit, type: event.pointerType, id: event.pointerId, spot, edge };
     if (spot && event.pointerType !== "mouse") {
       this.longPress = window.setTimeout(() => {
         navigator.vibrate?.(15);
@@ -965,7 +984,7 @@ export class BinderScene {
       return;
     }
     if (event.pointerType === "mouse" && !this.busy) {
-      const { hit } = this.pick(event.clientX, event.clientY);
+      const { hit, edge } = this.pick(event.clientX, event.clientY);
       this.setHover(hit);
       const point = hit ? null : this.tablePoint(event.clientX, event.clientY);
       const spot = point ? this.table.slotAt(point.x, point.z) : null;
@@ -974,7 +993,7 @@ export class BinderScene {
         this.hoverSpot = spot?.id ?? null;
         if (this.hoverSpot) this.table.highlight(this.hoverSpot, true);
       }
-      if (spot) this.renderer.domElement.style.cursor = "grab";
+      this.renderer.domElement.style.cursor = spot ? "grab" : hit || edge || this.spread < 0 ? "pointer" : "default";
     }
   }
 
@@ -1019,6 +1038,11 @@ export class BinderScene {
       return;
     }
     if (this.busy) return;
+    if (down.edge) {
+      if (down.edge === "right") this.next();
+      else this.previous();
+      return;
+    }
     const hit = down.hit;
     if (!hit) {
       this.selectedSlot = null;
@@ -1059,7 +1083,7 @@ export class BinderScene {
     texture.colorSpace = THREE.SRGBColorSpace;
     this.ghost.material.map = texture;
     this.ghost.material.needsUpdate = true;
-    const { point } = this.pick(clientX, clientY);
+    const { point } = this.pick(clientX, clientY, false);
     if (point) this.ghost.position.set(point.x, PAGE_Y + 1.2, point.z);
     this.ghostTarget.copy(this.ghost.position);
     this.ghost.visible = true;
@@ -1067,7 +1091,7 @@ export class BinderScene {
   }
 
   private dragTo(clientX: number, clientY: number) {
-    const { hit, point } = this.pick(clientX, clientY);
+    const { hit, point } = this.pick(clientX, clientY, false);
     if (point) this.ghostTarget.set(point.x, PAGE_Y + 1.6, point.z);
     this.setHover(hit);
     // Hovering at the outer edge of a page turns it.
@@ -1096,7 +1120,7 @@ export class BinderScene {
 
   private drop(clientX: number, clientY: number, down: NonNullable<BinderScene["down"]>) {
     const card = this.dragging;
-    const { hit } = this.pick(clientX, clientY);
+    const { hit } = this.pick(clientX, clientY, false);
     const stayed = down.type !== "mouse" && Math.hypot(clientX - down.x, clientY - down.y) <= 14;
     this.endDrag();
     if (card && stayed && hit?.slot === card.slot) {
